@@ -2,6 +2,7 @@
   "expo": {
     "name": "knowbi",
     "slug": "knowbi",
+    "scheme": "knowbi",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -21,10 +22,35 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.knowbi",
+      "googleServicesFile": "./google-services.json"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "color": "#7F77DD",
+          "defaultChannel": "daily-pills"
+        }
+      ],
+      "@sentry/react-native"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c5a8f1a0-f13f-4154-97fa-ba843c187f1d"
+      }
+    },
+    "owner": "adriankervin",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c5a8f1a0-f13f-4154-97fa-ba843c187f1d"
     }
   }
 }
