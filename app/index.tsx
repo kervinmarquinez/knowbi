@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { View, Image } from 'react-native';
+import { View } from 'react-native';
+import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LogoWordmark } from '../lib/ui/LogoWordmark';
 import Animated, {
@@ -12,9 +13,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
-import { getOrCreateSession } from '../lib/auth';
+import { getSession } from '../lib/auth';
 import { ensurePushTokenRegistered } from '../lib/notifications';
-
 
 export default function Splash() {
   const router = useRouter();
@@ -26,24 +26,22 @@ export default function Splash() {
     const minDelay = new Promise<void>((resolve) => {
       timerId = setTimeout(resolve, 1200);
     });
-    const bootstrap = getOrCreateSession()
-      .then(async (session) => {
-        ensurePushTokenRegistered(session.user.id);
-        const categories = await AsyncStorage.getItem('user_categories');
-        return { ok: true as const, hasCategories: !!categories, session };
-      })
-      .catch((err) => {
-        console.error('getOrCreateSession failed', err);
-        return { ok: false as const };
-      });
+
+    const bootstrap = (async () => {
+      const session = await getSession();
+      if (!session) return { route: '/(auth)/welcome' as const };
+      ensurePushTokenRegistered(session.user.id).catch(() => {});
+      const categories = await AsyncStorage.getItem('user_categories');
+      if (categories) return { route: '/(tabs)' as const };
+      return { route: '/(onboarding)/categories?from=onboarding' as const };
+    })().catch((err) => {
+      console.error('splash bootstrap failed', err);
+      return { route: '/(auth)/welcome' as const };
+    });
 
     Promise.all([minDelay, bootstrap]).then(([, result]) => {
       if (!mounted) return;
-      if (!result.ok) {
-        router.replace('/(onboarding)/welcome');
-        return;
-      }
-      router.replace(result.hasCategories ? '/(tabs)' : '/(onboarding)/welcome');
+      router.replace(result.route);
     });
 
     return () => {
@@ -57,7 +55,8 @@ export default function Splash() {
       <Image
         source={require('../assets/mascot-head.png')}
         style={{ width: 132, height: 132 }}
-        resizeMode="contain"
+        contentFit="contain"
+        transition={200}
       />
       <View className="items-center mt-6">
         <LogoWordmark height={72} />
