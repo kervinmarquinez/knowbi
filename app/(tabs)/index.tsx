@@ -27,7 +27,7 @@ const SWIPE_VELOCITY_THRESHOLD = 500;
 export default function HoyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { pills, isLoading, error, markAsRead, saveToLibrary, allRead, refetch } = useDailyPills();
+  const { pills, isLoading, error, markAsRead, saveToLibrary, setSaved, allRead, refetch } = useDailyPills();
   const [idx, setIdx] = useState(0);
   const [streak, setStreak] = useState(0);
   const [isAnon, setIsAnon] = useState(false);
@@ -108,11 +108,11 @@ export default function HoyScreen() {
   const handleSave = async () => {
     const pill = pills[idx];
     if (!pill) return;
-    if (isAnon) {
+    if (isAnon && !pill.is_saved) {
       promptSignup();
       return;
     }
-    await saveToLibrary(pill.id);
+    await setSaved(pill.id, !pill.is_saved);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 

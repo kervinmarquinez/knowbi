@@ -116,18 +116,18 @@ export function useDailyPills() {
     }
   }, []);
 
-  const saveToLibrary = useCallback(async (pillId: string) => {
+  const setSaved = useCallback(async (pillId: string, value: boolean) => {
     let previous = false;
     setPills((prev) =>
       prev.map((p) => {
         if (p.id !== pillId) return p;
         previous = p.is_saved;
-        return { ...p, is_saved: true };
+        return { ...p, is_saved: value };
       })
     );
     const { error: updateErr } = await supabase
       .from('daily_pills')
-      .update({ is_saved: true })
+      .update({ is_saved: value })
       .eq('id', pillId);
     if (updateErr) {
       setPills((prev) => prev.map((p) => (p.id === pillId ? { ...p, is_saved: previous } : p)));
@@ -135,7 +135,9 @@ export function useDailyPills() {
     }
   }, []);
 
+  const saveToLibrary = useCallback((pillId: string) => setSaved(pillId, true), [setSaved]);
+
   const allRead = pills.length > 0 && pills.every((p) => p.is_read);
 
-  return { pills, isLoading, error, markAsRead, saveToLibrary, allRead, refetch: fetchPills };
+  return { pills, isLoading, error, markAsRead, saveToLibrary, setSaved, allRead, refetch: fetchPills };
 }
