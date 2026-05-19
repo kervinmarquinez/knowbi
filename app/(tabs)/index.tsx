@@ -28,7 +28,7 @@ const DRAG_PROGRESS_DENOM = SCREEN_WIDTH / 2;
 export default function HoyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { pills, isLoading, error, markAsRead, setSaved, allRead, refetch } = useDailyPills();
+  const { pills, isLoading, error, markAsRead, setSaved, syncSavedStates, allRead, refetch } = useDailyPills();
   const [idx, setIdx] = useState(0);
   const [streak, setStreak] = useState(0);
   const [isAnon, setIsAnon] = useState(false);
@@ -43,6 +43,8 @@ export default function HoyScreen() {
     useCallback(() => {
       let cancelled = false;
       if (allReadRef.current) setIdx(0);
+
+      syncSavedStates();
 
       async function loadStreak() {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -66,7 +68,7 @@ export default function HoyScreen() {
 
       loadStreak();
       return () => { cancelled = true; };
-    }, []),
+    }, [syncSavedStates]),
   );
 
   useEffect(() => {

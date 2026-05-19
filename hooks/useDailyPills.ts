@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 
@@ -33,6 +33,9 @@ export function useDailyPills() {
   const [pills, setPills] = useState<DailyPill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const pillsRef = useRef<DailyPill[]>([]);
+  useEffect(() => { pillsRef.current = pills; }, [pills]);
 
   const fetchPills = useCallback(async () => {
     setIsLoading(true);
@@ -137,7 +140,21 @@ export function useDailyPills() {
 
   const saveToLibrary = useCallback((pillId: string) => setSaved(pillId, true), [setSaved]);
 
+  const syncSavedStates = useCallback(async () => {
+    const current = pillsRef.current;
+    if (current.length === 0) return;
+    const { data, error: queryErr } = await supabase
+      .from('daily_pills')
+      .select('id, is_saved')
+      .in('id', current.map((p) => p.id));
+    if (queryErr || !data) return;
+    const savedById = new Map(data.map((r) => [r.id as string, r.is_saved as boolean]));
+    setPills((prev) =>
+      prev.map((p) => (savedById.has(p.id) ? { ...p, is_saved: savedById.get(p.id)! } : p)),
+    );
+  }, []);
+
   const allRead = pills.length > 0 && pills.every((p) => p.is_read);
 
-  return { pills, isLoading, error, markAsRead, saveToLibrary, setSaved, allRead, refetch: fetchPills };
+  return { pills, isLoading, error, markAsRead, saveToLibrary, setSaved, syncSavedStates, allRead, refetch: fetchPills };
 }
