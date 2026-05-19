@@ -119,8 +119,8 @@ export default function HoyScreen() {
   };
 
   const onSwipeBackward = () => {
-    translateX.value = 0;
     goBack();
+    translateX.value = 0;
   };
 
   const pan = Gesture.Pan()
@@ -146,7 +146,7 @@ export default function HoyScreen() {
         return;
       }
 
-      const target = (isBackward ? 1 : -1) * (SCREEN_WIDTH + 80);
+      const target = isBackward ? SCREEN_WIDTH : -(SCREEN_WIDTH + 80);
       translateX.value = withSpring(
         target,
         { velocity: e.velocityX, damping: 22, stiffness: 100, overshootClamping: true },
@@ -161,6 +161,10 @@ export default function HoyScreen() {
       { translateX: translateX.value },
       { rotate: `${translateX.value / 30}deg` },
     ],
+  }));
+
+  const animatedPrevStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value - SCREEN_WIDTH }],
   }));
 
   const animatedMidStyle = useAnimatedStyle(() => {
@@ -209,6 +213,7 @@ export default function HoyScreen() {
   const pill = pills[idx];
   if (!pill) return null;
 
+  const prevPill = idx > 0 ? pills[idx - 1] : null;
   const isSaved = pill.is_saved;
   const showBack = idx + 2 < pills.length;
   const showMid = idx + 1 < pills.length;
@@ -235,6 +240,19 @@ export default function HoyScreen() {
               pointerEvents="none"
               style={[styles.cardShell, animatedMidStyle]}
             />
+          )}
+          {prevPill && (
+            <Animated.View
+              pointerEvents="none"
+              style={[StyleSheet.absoluteFill, animatedPrevStyle]}
+            >
+              <PillCard
+                pill={{ category: prevPill.category as Category, title: prevPill.title, body: prevPill.body, date: prevPill.date }}
+                index={idx - 1}
+                total={pills.length}
+                saved={prevPill.is_saved}
+              />
+            </Animated.View>
           )}
           <GestureDetector gesture={pan}>
             <Animated.View style={[StyleSheet.absoluteFill, animatedCardStyle]}>
