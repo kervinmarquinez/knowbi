@@ -276,14 +276,14 @@ export default function HoyScreen() {
           paddingVertical: 16,
         }}
       >
-        <Ionicons name="arrow-back" size={16} color="#888885" />
-        <Text style={styles.hintText}>Desliza</Text>
         <Ionicons
-          name="arrow-forward"
+          name="arrow-back"
           size={16}
           color="#888885"
           style={{ opacity: canGoBack ? 1 : 0.3 }}
         />
+        <Text style={styles.hintText}>Desliza</Text>
+        <Ionicons name="arrow-forward" size={16} color="#888885" />
       </View>
     </SafeAreaView>
   );
