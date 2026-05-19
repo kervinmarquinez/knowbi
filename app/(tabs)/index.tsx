@@ -23,24 +23,18 @@ import type { Category } from '../../lib/ui/categories';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_DISTANCE_THRESHOLD = 80;
 const SWIPE_VELOCITY_THRESHOLD = 500;
-const STAMP_REVEAL_DISTANCE = SCREEN_WIDTH * 0.35;
 const DRAG_PROGRESS_DENOM = SCREEN_WIDTH / 2;
 
 export default function HoyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { pills, isLoading, error, markAsRead, saveToLibrary, setSaved, allRead, refetch } = useDailyPills();
+  const { pills, isLoading, error, markAsRead, setSaved, allRead, refetch } = useDailyPills();
   const [idx, setIdx] = useState(0);
   const [streak, setStreak] = useState(0);
   const [isAnon, setIsAnon] = useState(false);
   const translateX = useSharedValue(0);
-  const isAnonSV = useSharedValue(false);
   const androidTabBarPad =
     process.env.EXPO_OS === 'android' ? insets.bottom + 80 : 0;
-
-  useEffect(() => {
-    isAnonSV.value = isAnon;
-  }, [isAnon, isAnonSV]);
 
   const allReadRef = useRef(false);
   useEffect(() => { allReadRef.current = allRead; }, [allRead]);
@@ -93,19 +87,19 @@ export default function HoyScreen() {
     );
   }, [router]);
 
-  const advance = async (save: boolean) => {
+  const advance = async () => {
     const pill = pills[idx];
     if (!pill) return;
-    if (save) {
-      await saveToLibrary(pill.id);
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
     await markAsRead(pill.id);
     if (idx + 1 < pills.length) {
       setIdx(idx + 1);
     } else {
       router.push('/completed');
     }
+  };
+
+  const goBack = () => {
+    if (idx > 0) setIdx(idx - 1);
   };
 
   const handleSave = async () => {
@@ -119,9 +113,14 @@ export default function HoyScreen() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const onSwipeOut = (save: boolean) => {
+  const onSwipeForward = () => {
     translateX.value = 0;
-    advance(save);
+    advance();
+  };
+
+  const onSwipeBackward = () => {
+    translateX.value = 0;
+    goBack();
   };
 
   const pan = Gesture.Pan()
@@ -140,20 +139,19 @@ export default function HoyScreen() {
         return;
       }
 
-      const isSave = e.translationX > 0;
+      const isBackward = e.translationX > 0;
 
-      if (isSave && isAnonSV.value) {
+      if (isBackward && idx === 0) {
         translateX.value = withSpring(0, { damping: 15, stiffness: 120 });
-        runOnJS(promptSignup)();
         return;
       }
 
-      const target = (isSave ? 1 : -1) * (SCREEN_WIDTH + 80);
+      const target = (isBackward ? 1 : -1) * (SCREEN_WIDTH + 80);
       translateX.value = withSpring(
         target,
         { velocity: e.velocityX, damping: 22, stiffness: 100, overshootClamping: true },
         (finished) => {
-          if (finished) runOnJS(onSwipeOut)(isSave);
+          if (finished) runOnJS(isBackward ? onSwipeBackward : onSwipeForward)();
         },
       );
     });
@@ -166,44 +164,26 @@ export default function HoyScreen() {
   }));
 
   const animatedMidStyle = useAnimatedStyle(() => {
-    const p = Math.min(Math.abs(translateX.value) / DRAG_PROGRESS_DENOM, 1);
+    const forwardP = Math.min(Math.max(0, -translateX.value) / DRAG_PROGRESS_DENOM, 1);
     return {
       transform: [
-        { translateY: interpolate(p, [0, 1], [8, 0], Extrapolation.CLAMP) },
-        { scale: interpolate(p, [0, 1], [0.96, 1], Extrapolation.CLAMP) },
+        { translateY: interpolate(forwardP, [0, 1], [8, 0], Extrapolation.CLAMP) },
+        { scale: interpolate(forwardP, [0, 1], [0.96, 1], Extrapolation.CLAMP) },
       ],
-      opacity: interpolate(p, [0, 1], [0.6, 1], Extrapolation.CLAMP),
+      opacity: interpolate(forwardP, [0, 1], [0.6, 1], Extrapolation.CLAMP),
     };
   });
 
   const animatedBackStyle = useAnimatedStyle(() => {
-    const p = Math.min(Math.abs(translateX.value) / DRAG_PROGRESS_DENOM, 1);
+    const forwardP = Math.min(Math.max(0, -translateX.value) / DRAG_PROGRESS_DENOM, 1);
     return {
       transform: [
-        { translateY: interpolate(p, [0, 1], [16, 8], Extrapolation.CLAMP) },
-        { scale: interpolate(p, [0, 1], [0.92, 0.96], Extrapolation.CLAMP) },
+        { translateY: interpolate(forwardP, [0, 1], [16, 8], Extrapolation.CLAMP) },
+        { scale: interpolate(forwardP, [0, 1], [0.92, 0.96], Extrapolation.CLAMP) },
       ],
-      opacity: interpolate(p, [0, 1], [0.3, 0.6], Extrapolation.CLAMP),
+      opacity: interpolate(forwardP, [0, 1], [0.3, 0.6], Extrapolation.CLAMP),
     };
   });
-
-  const saveStampStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      translateX.value,
-      [0, STAMP_REVEAL_DISTANCE],
-      [0, 1],
-      Extrapolation.CLAMP,
-    ),
-  }));
-
-  const skipStampStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      translateX.value,
-      [-STAMP_REVEAL_DISTANCE, 0],
-      [1, 0],
-      Extrapolation.CLAMP,
-    ),
-  }));
 
   if (isLoading) {
     return (
@@ -232,6 +212,7 @@ export default function HoyScreen() {
   const isSaved = pill.is_saved;
   const showBack = idx + 2 < pills.length;
   const showMid = idx + 1 < pills.length;
+  const canGoBack = idx > 0;
 
   return (
     <SafeAreaView
@@ -264,18 +245,6 @@ export default function HoyScreen() {
                 saved={isSaved}
                 onSave={handleSave}
               />
-              <Animated.View
-                pointerEvents="none"
-                style={[styles.stamp, styles.stampSave, saveStampStyle]}
-              >
-                <Text style={styles.stampSaveText}>Guardar</Text>
-              </Animated.View>
-              <Animated.View
-                pointerEvents="none"
-                style={[styles.stamp, styles.stampSkip, skipStampStyle]}
-              >
-                <Text style={styles.stampSkipText}>Saltar</Text>
-              </Animated.View>
             </Animated.View>
           </GestureDetector>
         </View>
@@ -291,15 +260,18 @@ export default function HoyScreen() {
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Ionicons name="arrow-back" size={14} color="#888885" />
-          <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 12, color: '#888885' }}>
-            Saltar
-          </Text>
+          <Text style={styles.hintText}>Siguiente</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 12, color: '#7F77DD' }}>
-            Guardar
-          </Text>
-          <Ionicons name="arrow-forward" size={14} color="#7F77DD" />
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            opacity: canGoBack ? 1 : 0.3,
+          }}
+        >
+          <Text style={styles.hintText}>Anterior</Text>
+          <Ionicons name="arrow-forward" size={14} color="#888885" />
         </View>
       </View>
     </SafeAreaView>
@@ -319,36 +291,9 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#E0DED8',
   },
-  stamp: {
-    position: 'absolute',
-    top: 24,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderCurve: 'continuous',
-    borderWidth: 2,
-    backgroundColor: '#FFFFFF',
-  },
-  stampSave: {
-    left: 24,
-    borderColor: '#7F77DD',
-    transform: [{ rotate: '-12deg' }],
-  },
-  stampSaveText: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 16,
-    color: '#7F77DD',
-    letterSpacing: 1,
-  },
-  stampSkip: {
-    right: 24,
-    borderColor: '#888885',
-    transform: [{ rotate: '12deg' }],
-  },
-  stampSkipText: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 16,
+  hintText: {
+    fontFamily: 'DMSans_500Medium',
+    fontSize: 12,
     color: '#888885',
-    letterSpacing: 1,
   },
 });
