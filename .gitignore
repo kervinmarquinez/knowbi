@@ -40,3 +40,9 @@ yarn-error.*
 /ios
 /android
 supabase/cron_setup.sql
+
+# local skills library (mirror in .claude/skills/ activates the ones in use)
+.agents/
+
+# local Claude Code config (hooks, agents, worktrees, plan files)
+.claude/
