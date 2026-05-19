@@ -193,7 +193,11 @@ export default function HoyScreen() {
   const showMid = idx + 1 < pills.length;
 
   return (
-    <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
+    <SafeAreaView
+      className="flex-1 bg-surface"
+      edges={['top']}
+      style={process.env.EXPO_OS === 'android' ? { paddingBottom: 70 } : undefined}
+    >
       <TopBar streak={streak} />
       <ProgressDots total={pills.length} current={idx} />
       <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8 }}>
