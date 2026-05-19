@@ -276,21 +276,14 @@ export default function HoyScreen() {
           paddingVertical: 16,
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Ionicons name="arrow-back" size={14} color="#888885" />
-          <Text style={styles.hintText}>Siguiente</Text>
-        </View>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 6,
-            opacity: canGoBack ? 1 : 0.3,
-          }}
-        >
-          <Text style={styles.hintText}>Anterior</Text>
-          <Ionicons name="arrow-forward" size={14} color="#888885" />
-        </View>
+        <Ionicons name="arrow-back" size={16} color="#888885" />
+        <Text style={styles.hintText}>Desliza</Text>
+        <Ionicons
+          name="arrow-forward"
+          size={16}
+          color="#888885"
+          style={{ opacity: canGoBack ? 1 : 0.3 }}
+        />
       </View>
     </SafeAreaView>
   );
