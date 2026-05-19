@@ -9,13 +9,13 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-  withTiming,
   runOnJS,
+  interpolate,
+  Extrapolation,
 } from 'react-native-reanimated';
 import { TopBar } from '../../lib/ui/TopBar';
 import { ProgressDots } from '../../lib/ui/ProgressDots';
 import { PillCard } from '../../lib/ui/PillCard';
-import { Button } from '../../lib/ui/Button';
 import { useDailyPills } from '../../hooks/useDailyPills';
 import { supabase } from '../../lib/supabase';
 import type { Category } from '../../lib/ui/categories';
@@ -23,6 +23,8 @@ import type { Category } from '../../lib/ui/categories';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_DISTANCE_THRESHOLD = 80;
 const SWIPE_VELOCITY_THRESHOLD = 500;
+const STAMP_REVEAL_DISTANCE = SCREEN_WIDTH * 0.35;
+const DRAG_PROGRESS_DENOM = SCREEN_WIDTH / 2;
 
 export default function HoyScreen() {
   const router = useRouter();
@@ -32,8 +34,13 @@ export default function HoyScreen() {
   const [streak, setStreak] = useState(0);
   const [isAnon, setIsAnon] = useState(false);
   const translateX = useSharedValue(0);
+  const isAnonSV = useSharedValue(false);
   const androidTabBarPad =
     process.env.EXPO_OS === 'android' ? insets.bottom + 80 : 0;
+
+  useEffect(() => {
+    isAnonSV.value = isAnon;
+  }, [isAnon, isAnonSV]);
 
   const allReadRef = useRef(false);
   useEffect(() => { allReadRef.current = allRead; }, [allRead]);
@@ -90,10 +97,6 @@ export default function HoyScreen() {
     const pill = pills[idx];
     if (!pill) return;
     if (save) {
-      if (isAnon) {
-        promptSignup();
-        return;
-      }
       await saveToLibrary(pill.id);
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
@@ -116,14 +119,9 @@ export default function HoyScreen() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const onSwipeForward = () => {
+  const onSwipeOut = (save: boolean) => {
     translateX.value = 0;
-    advance(false);
-  };
-
-  const onSwipeBack = () => {
-    translateX.value = 0;
-    if (idx > 0) setIdx(idx - 1);
+    advance(save);
   };
 
   const pan = Gesture.Pan()
@@ -138,24 +136,24 @@ export default function HoyScreen() {
         Math.abs(e.velocityX) > SWIPE_VELOCITY_THRESHOLD;
 
       if (!shouldDismiss) {
-        translateX.value = withSpring(0, { damping: 18, stiffness: 180 });
+        translateX.value = withSpring(0, { damping: 15, stiffness: 120 });
         return;
       }
 
-      const isBackward = e.translationX > 0;
+      const isSave = e.translationX > 0;
 
-      // No hay píldora anterior → rebote
-      if (isBackward && idx === 0) {
-        translateX.value = withSpring(0, { damping: 18, stiffness: 180 });
+      if (isSave && isAnonSV.value) {
+        translateX.value = withSpring(0, { damping: 15, stiffness: 120 });
+        runOnJS(promptSignup)();
         return;
       }
 
-      const dir = isBackward ? 1 : -1;
-      translateX.value = withTiming(
-        dir * (SCREEN_WIDTH + 80),
-        { duration: 220 },
+      const target = (isSave ? 1 : -1) * (SCREEN_WIDTH + 80);
+      translateX.value = withSpring(
+        target,
+        { velocity: e.velocityX, damping: 22, stiffness: 100, overshootClamping: true },
         (finished) => {
-          if (finished) runOnJS(isBackward ? onSwipeBack : onSwipeForward)();
+          if (finished) runOnJS(onSwipeOut)(isSave);
         },
       );
     });
@@ -165,6 +163,46 @@ export default function HoyScreen() {
       { translateX: translateX.value },
       { rotate: `${translateX.value / 30}deg` },
     ],
+  }));
+
+  const animatedMidStyle = useAnimatedStyle(() => {
+    const p = Math.min(Math.abs(translateX.value) / DRAG_PROGRESS_DENOM, 1);
+    return {
+      transform: [
+        { translateY: interpolate(p, [0, 1], [8, 0], Extrapolation.CLAMP) },
+        { scale: interpolate(p, [0, 1], [0.96, 1], Extrapolation.CLAMP) },
+      ],
+      opacity: interpolate(p, [0, 1], [0.6, 1], Extrapolation.CLAMP),
+    };
+  });
+
+  const animatedBackStyle = useAnimatedStyle(() => {
+    const p = Math.min(Math.abs(translateX.value) / DRAG_PROGRESS_DENOM, 1);
+    return {
+      transform: [
+        { translateY: interpolate(p, [0, 1], [16, 8], Extrapolation.CLAMP) },
+        { scale: interpolate(p, [0, 1], [0.92, 0.96], Extrapolation.CLAMP) },
+      ],
+      opacity: interpolate(p, [0, 1], [0.3, 0.6], Extrapolation.CLAMP),
+    };
+  });
+
+  const saveStampStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      translateX.value,
+      [0, STAMP_REVEAL_DISTANCE],
+      [0, 1],
+      Extrapolation.CLAMP,
+    ),
+  }));
+
+  const skipStampStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      translateX.value,
+      [-STAMP_REVEAL_DISTANCE, 0],
+      [1, 0],
+      Extrapolation.CLAMP,
+    ),
   }));
 
   if (isLoading) {
@@ -206,21 +244,15 @@ export default function HoyScreen() {
       <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8 }}>
         <View style={{ flex: 1, position: 'relative' }}>
           {showBack && (
-            <View
+            <Animated.View
               pointerEvents="none"
-              style={[
-                styles.cardShell,
-                { transform: [{ translateY: 16 }, { scale: 0.92 }], opacity: 0.3 },
-              ]}
+              style={[styles.cardShell, animatedBackStyle]}
             />
           )}
           {showMid && (
-            <View
+            <Animated.View
               pointerEvents="none"
-              style={[
-                styles.cardShell,
-                { transform: [{ translateY: 8 }, { scale: 0.96 }], opacity: 0.6 },
-              ]}
+              style={[styles.cardShell, animatedMidStyle]}
             />
           )}
           <GestureDetector gesture={pan}>
@@ -232,29 +264,43 @@ export default function HoyScreen() {
                 saved={isSaved}
                 onSave={handleSave}
               />
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.stamp, styles.stampSave, saveStampStyle]}
+              >
+                <Text style={styles.stampSaveText}>Guardar</Text>
+              </Animated.View>
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.stamp, styles.stampSkip, skipStampStyle]}
+              >
+                <Text style={styles.stampSkipText}>Saltar</Text>
+              </Animated.View>
             </Animated.View>
           </GestureDetector>
         </View>
       </View>
-      <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingTop: 14 }}>
-        <View style={{ flex: 1 }}>
-          <Button variant="secondary" label="Saltar" onPress={() => advance(false)} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Button variant="primary" label="Guardar" onPress={() => advance(true)} />
-        </View>
-      </View>
       <View
-        className="flex-row items-center justify-center"
-        style={{ gap: 6, paddingVertical: 10 }}
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingHorizontal: 40,
+          paddingVertical: 16,
+        }}
       >
-        <Ionicons name="swap-horizontal" size={14} color="#888885" />
-        <Text
-          className="font-body text-body-text-muted"
-          style={{ fontSize: 11, lineHeight: 13 }}
-        >
-          Desliza o pulsa para avanzar
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Ionicons name="arrow-back" size={14} color="#888885" />
+          <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 12, color: '#888885' }}>
+            Saltar
+          </Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 12, color: '#7F77DD' }}>
+            Guardar
+          </Text>
+          <Ionicons name="arrow-forward" size={14} color="#7F77DD" />
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -269,7 +315,40 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
+    borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#E0DED8',
+  },
+  stamp: {
+    position: 'absolute',
+    top: 24,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderCurve: 'continuous',
+    borderWidth: 2,
+    backgroundColor: '#FFFFFF',
+  },
+  stampSave: {
+    left: 24,
+    borderColor: '#7F77DD',
+    transform: [{ rotate: '-12deg' }],
+  },
+  stampSaveText: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 16,
+    color: '#7F77DD',
+    letterSpacing: 1,
+  },
+  stampSkip: {
+    right: 24,
+    borderColor: '#888885',
+    transform: [{ rotate: '12deg' }],
+  },
+  stampSkipText: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 16,
+    color: '#888885',
+    letterSpacing: 1,
   },
 });
