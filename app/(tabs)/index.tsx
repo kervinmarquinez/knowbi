@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, Dimensions, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -26,11 +26,14 @@ const SWIPE_VELOCITY_THRESHOLD = 500;
 
 export default function HoyScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { pills, isLoading, error, markAsRead, saveToLibrary, allRead, refetch } = useDailyPills();
   const [idx, setIdx] = useState(0);
   const [streak, setStreak] = useState(0);
   const [isAnon, setIsAnon] = useState(false);
   const translateX = useSharedValue(0);
+  const androidTabBarPad =
+    process.env.EXPO_OS === 'android' ? insets.bottom + 80 : 0;
 
   const allReadRef = useRef(false);
   useEffect(() => { allReadRef.current = allRead; }, [allRead]);
@@ -196,7 +199,7 @@ export default function HoyScreen() {
     <SafeAreaView
       className="flex-1 bg-surface"
       edges={['top']}
-      style={process.env.EXPO_OS === 'android' ? { paddingBottom: 70 } : undefined}
+      style={androidTabBarPad ? { paddingBottom: androidTabBarPad } : undefined}
     >
       <TopBar streak={streak} />
       <ProgressDots total={pills.length} current={idx} />

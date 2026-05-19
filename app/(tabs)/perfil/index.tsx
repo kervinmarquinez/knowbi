@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, useFocusEffect } from 'expo-router';
 import { Badge } from '../../../lib/ui/Badge';
 import { AuthGate } from '../../../lib/ui/AuthGate';
@@ -84,6 +85,9 @@ function computeTopCategories(pills: PillRow[]): { category: Category; count: nu
 }
 
 export default function PerfilScreen() {
+  const insets = useSafeAreaInsets();
+  const androidTabBarPad =
+    process.env.EXPO_OS === 'android' ? insets.bottom + 80 : 0;
   const [data, setData] = useState<ProfileData>(DEFAULTS);
   const [isAnon, setIsAnon] = useState<boolean | null>(null);
 
@@ -180,7 +184,7 @@ export default function PerfilScreen() {
       <Stack.Screen options={{ title: 'Perfil' }} />
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 + androidTabBarPad }}
         showsVerticalScrollIndicator={false}
       >
         <View className="bg-white rounded-card" style={[styles.card, { marginBottom: 16 }]}>

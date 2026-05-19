@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, Platform, Alert, ActivityIndicator, Switch } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, {
@@ -60,6 +61,9 @@ function pickDisplayName(metadata: Record<string, unknown> | null | undefined): 
 
 export default function AjustesScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const androidTabBarPad =
+    process.env.EXPO_OS === 'android' ? insets.bottom + 80 : 0;
   const appVersion = Constants.expoConfig?.version;
 
   const [state, setState] = useState<AjustesState>({
@@ -286,7 +290,7 @@ export default function AjustesScreen() {
       <Stack.Screen options={{ title: 'Ajustes' }} />
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 + androidTabBarPad }}
         showsVerticalScrollIndicator={false}
       >
         {/* Greeting */}
