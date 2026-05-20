@@ -33,6 +33,10 @@ yarn-error.*
 # local env files
 .env*.local
 
+# Firebase config (provista vía EAS secret GOOGLE_SERVICES_JSON)
+google-services.json
+GoogleService-Info.plist
+
 # typescript
 *.tsbuildinfo
 
