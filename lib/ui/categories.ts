@@ -29,6 +29,10 @@ export const CATEGORIES: Category[] = [
   'Psicología',
   'Literatura',
   'Geografía',
+  'Medicina',
+  'Deporte',
+  'Economía',
+  'Arquitectura',
 ];
 
 export const CATEGORY_RAMPS: Record<Category, { bg: string; text: string }> = {
