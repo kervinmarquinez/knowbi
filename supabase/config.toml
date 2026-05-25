@@ -170,7 +170,9 @@ refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
 enable_signup = true
 # Allow/disallow anonymous sign-ins to your project.
-enable_anonymous_sign_ins = false
+# La app usa signInAnonymously (modo invitado), así que en producción está activado.
+# Lo reflejamos aquí para que un `supabase config push` no rompa el flujo anónimo.
+enable_anonymous_sign_ins = true
 # Allow/disallow testing manual linking of accounts
 enable_manual_linking = false
 # Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
@@ -428,3 +430,9 @@ entrypoint = "./functions/generate-pills-batch/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/generate-pills-batch/*.html" ]
+
+[functions.send-daily-pushes]
+enabled = true
+verify_jwt = true
+import_map = "./functions/send-daily-pushes/deno.json"
+entrypoint = "./functions/send-daily-pushes/index.ts"

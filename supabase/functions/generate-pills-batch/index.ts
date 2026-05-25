@@ -38,6 +38,12 @@ const SERVICE_ROLE_JWT = requireEnv("SERVICE_ROLE_JWT");
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// Fecha objetivo del batch en UTC. INVARIANTE: este job está programado a las 22:00 UTC
+// (cron_setup.sql). A esa hora, "UTC mañana" coincide con la fecha Madrid que los usuarios
+// consumirán a continuación, tanto en CET (Madrid 23:00) como en CEST (Madrid 00:00) —y por
+// eso cuadra con windowDate() del cliente y todayMadridISO() del sender, que sí van en
+// Madrid. ⚠️ Si cambias la hora del cron, revisa esto: fuera de la franja ~21:00–23:59 UTC
+// "UTC mañana" puede dejar de coincidir con la fecha Madrid de consumo.
 function tomorrowISO(): string {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() + 1);
@@ -123,7 +129,7 @@ Deno.serve(async (_req) => {
   if (error) {
     console.error("user_preferences query failed", error);
     return new Response(
-      JSON.stringify({ error: "Error consultando user_preferences", details: error.message }),
+      JSON.stringify({ error: "Error consultando user_preferences" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }

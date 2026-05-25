@@ -173,7 +173,7 @@ Deno.serve(async (_req) => {
   if (error) {
     console.error("user_preferences query failed", error);
     return new Response(
-      JSON.stringify({ error: "Error consultando user_preferences", details: error.message }),
+      JSON.stringify({ error: "Error consultando user_preferences" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }

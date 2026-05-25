@@ -411,7 +411,7 @@ Deno.serve(async (req) => {
 
   if (cacheErr) {
     console.error("shared_pills lookup failed", cacheErr);
-    return jsonResponse({ error: "Error consultando caché", details: cacheErr.message }, 500);
+    return jsonResponse({ error: "Error consultando caché" }, 500);
   }
 
   let pills: Pill[];
@@ -466,7 +466,7 @@ Deno.serve(async (req) => {
 
     if (insErr) {
       console.error("shared_pills insert failed", insErr);
-      return jsonResponse({ error: "Error guardando píldoras", details: insErr.message }, 500);
+      return jsonResponse({ error: "Error guardando píldoras" }, 500);
     }
   }
 
@@ -480,7 +480,7 @@ Deno.serve(async (req) => {
 
   if (existingErr) {
     console.error("daily_pills idempotency check failed", existingErr);
-    return jsonResponse({ error: "Error comprobando píldoras del usuario", details: existingErr.message }, 500);
+    return jsonResponse({ error: "Error comprobando píldoras del usuario" }, 500);
   }
 
   if ((existingCount ?? 0) > 0) {
@@ -501,7 +501,7 @@ Deno.serve(async (req) => {
   const { error: dailyErr } = await supabase.from("daily_pills").insert(dailyRows);
   if (dailyErr) {
     console.error("daily_pills insert failed", dailyErr);
-    return jsonResponse({ error: "Error asignando píldoras al usuario", details: dailyErr.message }, 500);
+    return jsonResponse({ error: "Error asignando píldoras al usuario" }, 500);
   }
 
   return jsonResponse({ pills, cached: fromCache });
