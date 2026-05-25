@@ -37,7 +37,14 @@
           "defaultChannel": "daily-pills"
         }
       ],
-      "@sentry/react-native",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "adrian-0z",
+          "project": "knowbi",
+          "url": "https://de.sentry.io/"
+        }
+      ],
       "expo-web-browser"
     ],
     "extra": {
