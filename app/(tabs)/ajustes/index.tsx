@@ -97,7 +97,7 @@ export default function AjustesScreen() {
                 .from('user_preferences')
                 .select('notification_time, notification_enabled, categories')
                 .eq('user_id', userId)
-                .single<PrefRow>()
+                .maybeSingle<PrefRow>()
             : Promise.resolve({ data: null as PrefRow | null }),
           AsyncStorage.getItem(NOTIFICATION_TIME_KEY),
           AsyncStorage.getItem(NOTIFICATION_ENABLED_KEY),

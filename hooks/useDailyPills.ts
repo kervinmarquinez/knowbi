@@ -33,7 +33,7 @@ async function getDropHour(userId: string): Promise<number> {
     .from('user_preferences')
     .select('notification_time')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
   return dropHourFromHHMM(data?.notification_time);
 }
 

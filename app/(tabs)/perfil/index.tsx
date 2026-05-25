@@ -34,12 +34,16 @@ type ProfileData = {
   currentStreak: number;
   maxStreak: number;
   pills: PillRow[];
+  totalRead: number;
+  totalSaved: number;
 };
 
 const DEFAULTS: ProfileData = {
   currentStreak: 0,
   maxStreak: 0,
   pills: [],
+  totalRead: 0,
+  totalSaved: 0,
 };
 
 function buildCalendarCells(pills: PillRow[]): Cell[] {
@@ -108,22 +112,33 @@ export default function PerfilScreen() {
         cutoff.setDate(cutoff.getDate() - 83);
         const cutoffStr = toDateString(cutoff);
 
-        const [streakRes, pillsRes] = await Promise.all([
+        const [streakRes, pillsRes, readRes, savedRes] = await Promise.all([
           supabase
             .from('user_streaks')
             .select('current_streak, max_streak')
             .eq('user_id', userId)
-            .single(),
+            .maybeSingle(),
           supabase
             .from('daily_pills')
             .select('id, date, category, is_read, is_saved')
             .eq('user_id', userId)
             .gte('date', cutoffStr),
+          // Totales de por vida (no solo la ventana de 84 días del calendario).
+          supabase
+            .from('daily_pills')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('is_read', true),
+          supabase
+            .from('daily_pills')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('is_saved', true),
         ]);
 
         if (cancelled) return;
 
-        if (streakRes.error && streakRes.error.code !== 'PGRST116') {
+        if (streakRes.error) {
           console.error('perfil streak fetch error', streakRes.error);
         }
         if (pillsRes.error) {
@@ -134,6 +149,8 @@ export default function PerfilScreen() {
           currentStreak: streakRes.data?.current_streak ?? 0,
           maxStreak: streakRes.data?.max_streak ?? 0,
           pills: (pillsRes.data as PillRow[]) ?? [],
+          totalRead: readRes.count ?? 0,
+          totalSaved: savedRes.count ?? 0,
         });
       }
 
@@ -143,8 +160,8 @@ export default function PerfilScreen() {
   );
 
   const cells = useMemo(() => buildCalendarCells(data.pills), [data.pills]);
-  const totalRead = useMemo(() => data.pills.filter((p) => p.is_read).length, [data.pills]);
-  const totalSaved = useMemo(() => data.pills.filter((p) => p.is_saved).length, [data.pills]);
+  const totalRead = data.totalRead;
+  const totalSaved = data.totalSaved;
   const topCategories = useMemo(() => computeTopCategories(data.pills), [data.pills]);
 
   if (isAnon === null) {

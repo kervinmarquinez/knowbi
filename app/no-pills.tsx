@@ -33,7 +33,7 @@ export default function NoPillsYetScreen() {
           .from('user_preferences')
           .select('notification_time')
           .eq('user_id', userId)
-          .single();
+          .maybeSingle();
         hhmm = prefRow?.notification_time ?? null;
       }
       if (cancelled) return;
@@ -60,7 +60,7 @@ export default function NoPillsYetScreen() {
         .from('user_streaks')
         .select('current_streak')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (!cancelled) {
         if (streakData) setStreak(streakData.current_streak);

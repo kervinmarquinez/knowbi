@@ -32,7 +32,7 @@ async function syncPreferencesToSupabase(input: {
     .from('user_preferences')
     .select('categories')
     .eq('user_id', userData.user.id)
-    .single();
+    .maybeSingle();
 
   await supabase.from('user_preferences').upsert(
     {

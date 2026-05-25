@@ -98,7 +98,7 @@ export async function ensurePushTokenRegistered(userId: string): Promise<void> {
       .from('user_preferences')
       .select('expo_push_token')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
     if (error || row?.expo_push_token) return;
 
     const { status } = await Notifications.getPermissionsAsync();

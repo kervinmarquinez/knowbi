@@ -33,7 +33,7 @@ export default function PillDetailScreen() {
         .from('daily_pills')
         .select('id, title, body, category, date, is_saved')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       if (cancelled) return;
       if (

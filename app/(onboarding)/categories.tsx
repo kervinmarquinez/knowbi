@@ -19,7 +19,7 @@ async function loadInitialCategories(): Promise<string[]> {
       .from('user_preferences')
       .select('categories')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
     if (data?.categories && Array.isArray(data.categories)) {
       return data.categories as string[];
     }
