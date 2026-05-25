@@ -131,10 +131,36 @@ Deno.serve(async (_req) => {
   const list = (users ?? []) as UserPref[];
   console.log(`batch start: ${list.length} active users, target date ${date}`);
 
-  for (let i = 0; i < list.length; i += BATCH_SIZE) {
-    const batch = list.slice(i, i + BATCH_SIZE);
-    await Promise.all(batch.map((u) => processUser(u, date, summary)));
-    console.log(`batch ${i / BATCH_SIZE + 1} done; running summary`, summary);
+  // Agrupar por combo de categorías. La generación (Haiku) es cara, pero shared_pills la
+  // cachea entre usuarios del mismo combo: solo el primero paga, el resto lee de caché.
+  // Generamos UNA vez por combo (await del primero) y luego repartimos al resto en
+  // paralelo. Sin esto, los usuarios del mismo combo dentro del mismo Promise.all fallan
+  // la caché a la vez y cada uno paga Haiku (N llamadas en vez de 1).
+  const groups = new Map<string, UserPref[]>();
+  for (const u of list) {
+    const cats = Array.isArray(u.categories) ? u.categories : [];
+    const key = JSON.stringify([...cats].sort());
+    const existing = groups.get(key);
+    if (existing) existing.push(u);
+    else groups.set(key, [u]);
+  }
+  console.log(`batch: ${groups.size} distinct category combos`);
+
+  async function processGroup(members: UserPref[]): Promise<void> {
+    // El primero calienta shared_pills (cache miss → Haiku). El resto cae en cache hit.
+    await processUser(members[0], date, summary);
+    if (members.length > 1) {
+      await Promise.all(members.slice(1).map((u) => processUser(u, date, summary)));
+    }
+  }
+
+  // Procesa hasta BATCH_SIZE combos distintos en paralelo (combos distintos sí necesitan
+  // generaciones distintas), serializando dentro de cada combo.
+  const groupList = [...groups.values()];
+  for (let i = 0; i < groupList.length; i += BATCH_SIZE) {
+    const slice = groupList.slice(i, i + BATCH_SIZE);
+    await Promise.all(slice.map(processGroup));
+    console.log(`combo chunk ${i / BATCH_SIZE + 1} done; running summary`, summary);
   }
 
   console.log("batch complete", summary);

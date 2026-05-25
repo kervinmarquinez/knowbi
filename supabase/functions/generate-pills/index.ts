@@ -22,6 +22,12 @@ const VALID_CATEGORIES = new Set([
   "Geografía", "Música", "Economía", "Medicina", "Arquitectura",
 ]);
 
+// Dedup entre días: lista de hechos ya publicados para el mismo combo de
+// categorías que se pasa al modelo para que no los repita (ni reformulados).
+const AVOID_LOOKBACK_DAYS = 30; // ventana de histórico a evitar
+const AVOID_MAX_ITEMS = 200;    // tope de píldoras en la lista (≈ 30 días de 1 combo)
+const AVOID_BODY_SNIPPET = 90;  // chars de cuerpo por entrada, para desambiguar títulos-anzuelo
+
 const SYSTEM_PROMPT = `Eres el generador de píldoras de conocimiento de Knowbi, una app de microaprendizaje diario en español.
 
 Tu tarea: producir datos curiosos sorprendentes pero rigurosamente verificables, escritos para adultos curiosos en español neutro. Una píldora plana no sirve aunque sea cierta: el dato tiene que dejar al lector con ganas de contárselo a alguien.
@@ -118,6 +124,76 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+const MAX_COUNT = 5;
+
+// Decodifica el payload del JWT SIN re-verificar la firma: el gateway de Edge Functions
+// (verify_jwt = true) ya rechazó cualquier token no firmado por el proyecto antes de
+// llegar aquí, así que los claims son de fiar. Devuelve null si no hay token o está mal
+// formado.
+function decodeJwtClaims(authHeader: string | null): { sub?: string; role?: string } | null {
+  if (!authHeader) return null;
+  const token = authHeader.replace(/^Bearer\s+/i, "");
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const pad = b64.length % 4 ? "=".repeat(4 - (b64.length % 4)) : "";
+    return JSON.parse(atob(b64 + pad));
+  } catch {
+    return null;
+  }
+}
+
+// YYYY-MM-DD del día actual en hora de Madrid (toda la app asume Europe/Madrid).
+function madridTodayISO(): string {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Madrid",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+// Suma/resta días de calendario a un 'YYYY-MM-DD' (aritmética en UTC puro sobre la fecha).
+function shiftISO(dateISO: string, days: number): string {
+  const d = new Date(`${dateISO}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function clampCount(raw: unknown): number {
+  const n = Math.floor(Number(raw));
+  if (!Number.isFinite(n) || n < 1) return MAX_COUNT;
+  return Math.min(n, MAX_COUNT);
+}
+
+type AvoidPill = { title: string; body: string };
+
+// Histórico de píldoras ya generadas para el mismo combo de categorías en los
+// últimos AVOID_LOOKBACK_DAYS (excluida la fecha objetivo). Se le pasa al modelo
+// para que no repita el mismo hecho. Degradación elegante: si la query falla,
+// devuelve [] y la generación sigue su curso normal.
+async function fetchRecentPills(categoriesHash: string, beforeDate: string): Promise<AvoidPill[]> {
+  const since = new Date(beforeDate);
+  since.setUTCDate(since.getUTCDate() - AVOID_LOOKBACK_DAYS);
+  const sinceISO = since.toISOString().slice(0, 10);
+
+  const { data, error } = await supabase
+    .from("shared_pills")
+    .select("title, body")
+    .eq("categories_hash", categoriesHash)
+    .gte("date", sinceISO)
+    .lt("date", beforeDate)
+    .order("date", { ascending: false })
+    .limit(AVOID_MAX_ITEMS);
+
+  if (error) {
+    console.error("fetchRecentPills failed (continuando sin avoid-list)", error);
+    return [];
+  }
+  return (data ?? []) as AvoidPill[];
+}
+
 function isValidPill(p: unknown): p is Pill {
   if (!p || typeof p !== "object") return false;
   const o = p as Record<string, unknown>;
@@ -176,7 +252,7 @@ function jaccard(a: Set<string>, b: Set<string>): number {
   return union === 0 ? 0 : intersection / union;
 }
 
-function validateBatch(pills: Pill[]): { ok: true } | { ok: false; reason: string } {
+function validateBatch(pills: Pill[], avoidList: AvoidPill[] = []): { ok: true } | { ok: false; reason: string } {
   for (const p of pills) {
     if (!titleEndsWell(p.title)) {
       return { ok: false, reason: `title ends with stopword: "${p.title}"` };
@@ -190,11 +266,29 @@ function validateBatch(pills: Pill[]): { ok: true } | { ok: false; reason: strin
       }
     }
   }
+  // Red léxica contra el histórico: rechaza el batch si algún título nuevo es
+  // casi idéntico a uno ya publicado. No pilla duplicados semánticos (de eso se
+  // encarga la avoid-list del prompt), solo títulos prácticamente iguales.
+  const historyTokens = avoidList.map((p) => titleTokens(p.title));
+  for (let i = 0; i < tokens.length; i++) {
+    for (let h = 0; h < historyTokens.length; h++) {
+      if (jaccard(tokens[i], historyTokens[h]) > 0.6) {
+        return { ok: false, reason: `history title duplicate: "${pills[i].title}" ≈ "${avoidList[h].title}"` };
+      }
+    }
+  }
   return { ok: true };
 }
 
-async function callHaiku(categories: string[], count: number): Promise<Pill[] | null> {
-  const userMessage = `Genera ${count} píldoras sobre estas categorías: ${categories.join(", ")}. Devuelve solo JSON válido, sin texto adicional.`;
+async function callHaiku(categories: string[], count: number, avoidList: AvoidPill[] = []): Promise<Pill[] | null> {
+  const avoidBlock = avoidList.length === 0 ? "" : `
+
+HECHOS YA PUBLICADOS EN DÍAS ANTERIORES — NO los repitas, ni reformulados desde otro ángulo, otro título o con otras cifras. Elige hechos DISTINTOS de estos:
+${avoidList.map((p) => `- ${p.title}: ${p.body.slice(0, AVOID_BODY_SNIPPET)}`).join("\n")}`;
+
+  const userMessage = `Genera ${count} píldoras sobre estas categorías: ${categories.join(", ")}.${avoidBlock}
+
+Devuelve solo JSON válido, sin texto adicional.`;
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -228,6 +322,9 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
+  const claims = decodeJwtClaims(req.headers.get("Authorization"));
+  const isService = claims?.role === "service_role";
+
   let body: RequestBody;
   try {
     body = await req.json();
@@ -235,16 +332,74 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Invalid JSON body" }, 400);
   }
 
-  const { user_id, categories, count, date: dateParam } = body;
-  if (!user_id || !Array.isArray(categories) || categories.length === 0 || !count || count < 1) {
-    return jsonResponse({ error: "Missing or invalid fields: user_id, categories, count" }, 400);
-  }
-  if (dateParam && !/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
-    return jsonResponse({ error: "Invalid date format, expected YYYY-MM-DD" }, 400);
+  let user_id: string;
+  let categories: string[];
+  let date: string;
+  const count = clampCount(body.count);
+
+  if (isService) {
+    // Camino interno (batch / sender): llaman con el JWT service_role y necesitan generar
+    // para cualquier user_id y fecha, así que se confía en el body.
+    if (!body.user_id || !Array.isArray(body.categories) || body.categories.length === 0) {
+      return jsonResponse({ error: "Missing or invalid fields: user_id, categories" }, 400);
+    }
+    if (body.date && !/^\d{4}-\d{2}-\d{2}$/.test(body.date)) {
+      return jsonResponse({ error: "Invalid date format, expected YYYY-MM-DD" }, 400);
+    }
+    user_id = body.user_id;
+    categories = body.categories.filter((c): c is string => typeof c === "string");
+    date = body.date ?? todayISO();
+  } else {
+    // Camino de cliente (usuario autenticado, incl. anónimo): NO se confía en el body.
+    // user_id sale del token; las categorías, de user_preferences; la fecha se acota a la
+    // ventana Madrid [ayer, mañana]. Así nadie puede generar para otro, con combos
+    // inventados, ni iterar fechas para quemar presupuesto de IA.
+    const callerId = typeof claims?.sub === "string" ? claims.sub : null;
+    if (!callerId) return jsonResponse({ error: "Unauthorized" }, 401);
+    user_id = callerId;
+
+    const { data: pref, error: prefErr } = await supabase
+      .from("user_preferences")
+      .select("categories")
+      .eq("user_id", callerId)
+      .maybeSingle();
+    if (prefErr) {
+      console.error("user_preferences lookup failed", prefErr);
+      return jsonResponse({ error: "Error consultando preferencias" }, 500);
+    }
+    categories = ((pref?.categories ?? []) as unknown[]).filter(
+      (c): c is string => typeof c === "string",
+    );
+    if (categories.length === 0) {
+      return jsonResponse({ error: "No categories configured" }, 400);
+    }
+
+    const today = madridTodayISO();
+    const allowed = new Set([shiftISO(today, -1), today, shiftISO(today, 1)]);
+    const reqDate = body.date ?? today;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(reqDate) || !allowed.has(reqDate)) {
+      return jsonResponse({ error: "Invalid or out-of-window date" }, 400);
+    }
+    date = reqDate;
   }
 
   const categoriesHash = computeCategoriesHash(categories);
-  const date = dateParam ?? todayISO();
+
+  // Idempotencia temprana: si el usuario ya tiene set para esta fecha (otro disparo, otro
+  // dispositivo, reintento), no generamos NADA — ni Haiku ni caché. Los llamantes no usan
+  // el cuerpo de la respuesta (sondean daily_pills), así que basta con señalar deduped.
+  const { count: priorCount, error: priorErr } = await supabase
+    .from("daily_pills")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user_id)
+    .eq("date", date);
+  if (priorErr) {
+    console.error("daily_pills idempotency check failed (early)", priorErr);
+    return jsonResponse({ error: "Error comprobando píldoras del usuario" }, 500);
+  }
+  if ((priorCount ?? 0) > 0) {
+    return jsonResponse({ deduped: true });
+  }
 
   // 1. Cache lookup in shared_pills
   const { data: cached, error: cacheErr } = await supabase
@@ -273,12 +428,14 @@ Deno.serve(async (req) => {
     }));
   } else {
     // 2. Cache miss — call Haiku (up to 2 attempts: retry on parse OR validation failure)
+    // Histórico del mismo combo para que el modelo no repita hechos ya publicados.
+    const avoidList = await fetchRecentPills(categoriesHash, date);
     let generated: Pill[] | null = null;
     try {
       for (let attempt = 0; attempt < 2; attempt++) {
-        const candidate = await callHaiku(categories, count);
+        const candidate = await callHaiku(categories, count, avoidList);
         if (!candidate) continue;
-        const v = validateBatch(candidate);
+        const v = validateBatch(candidate, avoidList);
         if (v.ok) {
           generated = candidate;
           break;

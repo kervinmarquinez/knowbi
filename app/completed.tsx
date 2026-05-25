@@ -26,13 +26,6 @@ import { markReviewing } from '../lib/completedReview';
 Animated.addWhitelistedNativeProps({ text: true });
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
-// Resta un día de calendario a un 'YYYY-MM-DD'.
-function previousDate(dateISO: string): string {
-  const d = new Date(`${dateISO}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().slice(0, 10);
-}
-
 export default function CompletedScreen() {
   const router = useRouter();
   const [streak, setStreak] = useState<number | null>(null);
@@ -128,64 +121,23 @@ export default function CompletedScreen() {
           .from('user_preferences')
           .select('notification_time')
           .eq('user_id', userId)
-          .single();
+          .maybeSingle();
         hhmm = prefRow?.notification_time ?? null;
       }
       const dropHour = dropHourFromHHMM(hhmm);
       setNextDropHHMM(`${String(dropHour).padStart(2, '0')}:00`);
 
       const today = windowDate(dropHour);
-      const yesterday = previousDate(today);
       setSetDate(today);
 
-      const { data: row, error: fetchErr } = await supabase
-        .from('user_streaks')
-        .select('current_streak, max_streak, last_active_date')
-        .eq('user_id', userId)
-        .single();
-
-      if (fetchErr && fetchErr.code !== 'PGRST116') {
-        console.error('streak fetch error', fetchErr);
+      // Toda la lógica de racha (alta/incremento/reset, idempotente) ocurre de forma
+      // atómica en la BD vía RPC, evitando carreras del read-modify-write anterior.
+      const { data, error: rpcErr } = await supabase.rpc('bump_streak', { p_set_date: today });
+      if (rpcErr) {
+        console.error('bump_streak error', rpcErr);
         return;
       }
-
-      let newCurrent: number;
-      let newMax: number;
-
-      if (!row) {
-        newCurrent = 1;
-        newMax = 1;
-        const { error: insertErr } = await supabase.from('user_streaks').insert({
-          user_id: userId,
-          current_streak: newCurrent,
-          max_streak: newMax,
-          last_active_date: today,
-        });
-        if (insertErr) console.error('streak insert error', insertErr);
-      } else if (row.last_active_date === today) {
-        // Already counted today — just display what we have
-        if (!cancelled) setStreak(row.current_streak);
-        return;
-      } else if (row.last_active_date === yesterday) {
-        newCurrent = row.current_streak + 1;
-        newMax = Math.max(row.max_streak, newCurrent);
-        const { error: updateErr } = await supabase
-          .from('user_streaks')
-          .update({ current_streak: newCurrent, max_streak: newMax, last_active_date: today })
-          .eq('user_id', userId);
-        if (updateErr) console.error('streak update error', updateErr);
-      } else {
-        // Gap of more than one day — reset
-        newCurrent = 1;
-        newMax = Math.max(row.max_streak, 1);
-        const { error: updateErr } = await supabase
-          .from('user_streaks')
-          .update({ current_streak: newCurrent, max_streak: newMax, last_active_date: today })
-          .eq('user_id', userId);
-        if (updateErr) console.error('streak update error', updateErr);
-      }
-
-      if (!cancelled) setStreak(newCurrent);
+      if (!cancelled) setStreak(typeof data === 'number' ? data : 0);
     }
 
     syncStreak();
