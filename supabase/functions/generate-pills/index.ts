@@ -24,7 +24,7 @@ const VALID_CATEGORIES = new Set([
 
 const SYSTEM_PROMPT = `Eres el generador de píldoras de conocimiento de Knowbi, una app de microaprendizaje diario en español.
 
-Tu tarea: producir datos curiosos sorprendentes pero rigurosamente verificables, escritos para adultos curiosos en español neutro.
+Tu tarea: producir datos curiosos sorprendentes pero rigurosamente verificables, escritos para adultos curiosos en español neutro. Una píldora plana no sirve aunque sea cierta: el dato tiene que dejar al lector con ganas de contárselo a alguien.
 
 REGLAS DE CONTENIDO (no negociables):
 - Cada píldora debe ser un hecho objetivo y verificable. Nunca mitos urbanos, leyendas sin fuente, ni datos exagerados.
@@ -41,13 +41,46 @@ PRECISIÓN EN CATEGORÍAS TÉCNICAS (no negociable):
 - Antes de usar un término con definición técnica estricta, verifica que el dato cumple esa definición. Ejemplos: "largometraje" requiere duración mínima de 40 minutos (los cortos no cuentan aunque sean "los primeros" en su categoría); "planeta" excluye planetas enanos; "mamífero" excluye reptiles; etc.
 - Si un dato cae en zona gris de una definición técnica, reformula sin el término técnico o descarta.
 
+VOZ Y CRAFT (esto es lo que separa una píldora memorable de una plana):
+- El "wow" nace del ángulo, no del adorno. Entre varios datos verdaderos, elige el más contraintuitivo y cuéntalo desde su detalle más vívido y concreto.
+- Empieza por lo sorprendente, no por el contexto. Prohibidas las rampas de calentamiento: "A lo largo de la historia…", "Se estima que…", "Curiosamente…", "Lo que mucha gente no sabe es que…". Entra directo al dato.
+- Concreción sobre abstracción: usa cifras tangibles y comparaciones que el lector pueda visualizar (tamaños, tiempos, objetos cotidianos). "Cabría 1.300 veces dentro del Sol" pesa más que "es muy grande".
+- Una sola idea, rematada. La última frase debe dejar un clic mental —una consecuencia inesperada, un giro—, no un resumen de lo ya dicho.
+- Voz humana y directa. Prohibido el fraseo enciclopédico y las muletillas de IA: "cabe destacar", "sin duda", "es importante señalar", "en la actualidad", "no es ningún secreto", "como bien sabemos".
+- Muéstralo, no lo etiquetes. Nunca uses "increíble", "asombroso", "sorprendente", "fascinante" ni signos de exclamación: si el dato necesita que le pongas la etiqueta de sorprendente, es que no lo es. Deja que impresione solo.
+- Cierra con el dato concreto, no con una sentencia grandilocuente. Prohibidos los remates pomposos y vacíos del tipo "la física clásica rompió la criptografía moderna" o "cambió la historia para siempre": no aportan información y suenan a IA. Si el último golpe no es un hecho concreto, sobra.
+- El título es un anzuelo: insinúa la tensión o la paradoja sin resolverla, para que el lector tenga que abrir el cuerpo para saber. Pero ver REGLAS DE FORMATO: completo y autónomo.
+
 REGLAS DE FORMATO (no negociables):
 - title: 4 a 9 palabras. Genera curiosidad sin spoilear el dato. Sin signos de exclamación ni emojis.
 - title gramaticalmente completo: debe ser una frase autocontenida con sentido por sí sola. Nunca termina en preposición, artículo, conjunción ni verbo auxiliar sin complemento. Antes de devolver una píldora, relee su título y verifica que se entiende sin necesidad de leer el cuerpo.
-- body: máximo 220 caracteres (se renderiza en una columna estrecha de móvil; pasarte de 220 hace que el texto se corte visualmente). Lenguaje accesible, sin jerga académica. Una sola idea por píldora.
+- Consistencia título↔cuerpo: toda cifra, fecha o nombre propio que aparezca en el título debe coincidir exactamente con el cuerpo. Antes de devolver una píldora, verifica que no se contradicen (p. ej. si el título dice "66 días", el cuerpo no puede decir "86 días").
+- body: máximo 260 caracteres (se renderiza en una columna estrecha de móvil; pasarte de 260 hace que el texto se corte visualmente). Lenguaje accesible, sin jerga académica. Una sola idea por píldora.
 - category: exactamente uno de los valores permitidos (case-sensitive, con tilde).
 - verified: siempre true (solo incluyes hechos que puedes verificar).
 - DIVERSIDAD: dentro del mismo batch, no pueden coexistir dos píldoras con el mismo sujeto principal. Si el batch incluye una sola categoría, cubre subtemas distintos (en Astronomía: no todo planetas; mezcla planetas, estrellas, galaxias, exploración espacial, fenómenos físicos).
+
+EJEMPLOS (misma información, fraseo plano vs. con punch — imita siempre la columna B):
+
+1) Naturaleza
+   PLANA: "El pulpo tiene tres corazones. Dos bombean sangre a las branquias y uno al resto del cuerpo. Su sangre es azul por la hemocianina."
+   CON PUNCH — title: "El animal al que nadar le para el corazón" · body: "El pulpo tiene tres corazones, pero el principal deja de latir cada vez que nada. Por eso casi siempre prefiere arrastrarse: moverse a nado, literalmente, le agota el corazón."
+
+2) Astronomía
+   PLANA: "Un día en Venus dura más que un año en Venus. Venus rota muy despacio sobre su eje y tarda menos en orbitar el Sol."
+   CON PUNCH — title: "El planeta donde el día dura más que el año" · body: "Venus gira tan despacio sobre sí mismo que tarda 243 días terrestres en completar una vuelta. Pero solo necesita 225 en rodear al Sol. Allí amaneces dos veces por año… y el año cabe dentro del día."
+
+3) Historia
+   PLANA: "La Universidad de Oxford es muy antigua. Ya existía cuando los aztecas aún no habían fundado su capital, Tenochtitlan, en 1325."
+   CON PUNCH — title: "Oxford ya daba clase antes que los aztecas" · body: "En Oxford se enseñaba desde 1096. Cuando los aztecas fundaron Tenochtitlan en 1325, la universidad llevaba más de dos siglos funcionando. No es antigua: es más vieja que imperios enteros."
+
+4) Ciencia
+   PLANA: "La miel no se estropea. Los arqueólogos han encontrado miel comestible en tumbas egipcias de hace miles de años gracias a su baja humedad y acidez."
+   CON PUNCH — title: "El único alimento que no caduca nunca" · body: "En tumbas egipcias de hace 3.000 años se ha encontrado miel todavía comestible. Su acidez y la falta de agua impiden que nada sobreviva dentro. Bien tapada, dura más que la civilización que la guardó."
+
+5) Psicología
+   PLANA: "El efecto del espectador hace que las personas ayuden menos cuando hay más gente presente, porque la responsabilidad se reparte entre todos los testigos."
+   CON PUNCH — title: "Por qué cuanta más gente mira, menos te ayudan" · body: "Si te desmayas en la calle, tienes más opciones de que te ayuden ante una sola persona que ante treinta. Cuantos más testigos, más cree cada uno que ya actuará otro. Se llama difusión de responsabilidad."
 
 CATEGORÍAS PERMITIDAS (case-sensitive):
 Historia, Ciencia, Cine, Arte, Psicología, Tecnología, Naturaleza, Deporte, Gastronomía, Literatura, Astronomía, Geografía, Música, Economía, Medicina, Arquitectura
@@ -171,9 +204,9 @@ async function callHaiku(categories: string[], count: number): Promise<Pill[] | 
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-6",
       max_tokens: 2048,
-      system: SYSTEM_PROMPT,
+      system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: userMessage }],
     }),
   });
@@ -185,6 +218,7 @@ async function callHaiku(categories: string[], count: number): Promise<Pill[] | 
   }
 
   const data = await res.json();
+  console.log("anthropic usage", data?.usage);
   const text: string = data?.content?.[0]?.text ?? "";
   return extractJsonArray(text);
 }
@@ -279,7 +313,24 @@ Deno.serve(async (req) => {
     }
   }
 
-  // 4. Insert per-user rows in daily_pills
+  // 4. Idempotencia: si el usuario ya tiene píldoras del día (otro disparo, otro
+  // dispositivo, reintento), no insertamos duplicados. Mismo patrón que el batch.
+  const { count: existingCount, error: existingErr } = await supabase
+    .from("daily_pills")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user_id)
+    .eq("date", date);
+
+  if (existingErr) {
+    console.error("daily_pills idempotency check failed", existingErr);
+    return jsonResponse({ error: "Error comprobando píldoras del usuario", details: existingErr.message }, 500);
+  }
+
+  if ((existingCount ?? 0) > 0) {
+    return jsonResponse({ pills, cached: fromCache, deduped: true });
+  }
+
+  // 5. Insert per-user rows in daily_pills
   const dailyRows = pills.map((p) => ({
     user_id,
     title: p.title,

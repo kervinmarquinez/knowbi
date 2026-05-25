@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Button } from '../../lib/ui/Button';
 import { CategoryGrid } from '../../lib/ui/CategoryGrid';
 import { supabase } from '../../lib/supabase';
+import { kickoffTodaysPills } from '../../lib/pillsKickoff';
 
 const USER_CATEGORIES_KEY = 'user_categories';
 
@@ -80,6 +81,10 @@ export default function CategoriesScreen() {
     setSaving(true);
     try {
       await savePreferences(picked);
+      // Anticipa la generación del día para solapar los ~50s con la pantalla de
+      // notificación. Solo en onboarding (usuario nuevo sin píldoras), no al editar
+      // categorías desde Ajustes. Fire-and-forget dentro del helper.
+      if (isOnboarding) await kickoffTodaysPills(picked);
     } catch (e) {
       console.error('save categories error', e);
     } finally {

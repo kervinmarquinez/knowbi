@@ -243,6 +243,7 @@ export const CATEGORIES = [
 7. **Pantalla 03 (categorías) se reutiliza desde Ajustes.** No crear una pantalla nueva. El mismo `app/(onboarding)/categories.tsx` se usa con `?from=onboarding` (flujo nuevo) o sin parámetro (edición desde Ajustes).
 8. **Pantalla 10 reutiliza el componente de la 06.** No duplicar código.
 9. **Auth en welcome con anónimo permitido.** La primera pantalla (`app/(auth)/welcome.tsx`) ofrece Crear cuenta, Iniciar sesión y "Explorar sin cuenta". El flujo anónimo (`signInAnonymously` vía `ensureAnonymousSession`) sigue vivo. **Guardar píldoras y ver Guardados/Perfil exigen cuenta real** — en esos puntos se muestra `<AuthGate>` (Guardados, Perfil) o un `Alert` de upsell (botón Guardar / bookmark del Home).
+10. **Build** Cada vez que editemos el código, mencionar al usuario si hay que volver a hacer un eas build o vale con un eas update.
 
 ---
 

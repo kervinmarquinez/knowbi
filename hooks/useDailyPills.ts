@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
+import { wasKickedToday, clearKickoff } from '../lib/pillsKickoff';
+import { windowDate, dropHourFromHHMM } from '../lib/dropWindow';
 
 export type DailyPill = {
   id: string;
@@ -14,8 +16,25 @@ export type DailyPill = {
 
 const DEFAULT_PILL_COUNT = 5;
 
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+// Polling de la generación on-demand: la Edge Function tarda ~50s y su invoke puede
+// expirar antes de terminar aunque acabe escribiendo. Sondeamos la BD hasta ~90s.
+const PILL_FIELDS = 'id, category, title, body, date, is_saved, is_read';
+const POLL_INTERVAL_MS = 3000;
+const MAX_POLLS = 30;
+
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+// Hora de drop del usuario (entero 0-23, Madrid). Preferimos AsyncStorage (rápido) y
+// caemos a user_preferences si no está en local.
+async function getDropHour(userId: string): Promise<number> {
+  const local = await AsyncStorage.getItem('notification_time');
+  if (local) return dropHourFromHHMM(local);
+  const { data } = await supabase
+    .from('user_preferences')
+    .select('notification_time')
+    .eq('user_id', userId)
+    .single();
+  return dropHourFromHHMM(data?.notification_time);
 }
 
 async function getUserCategories(): Promise<string[]> {
@@ -32,13 +51,22 @@ async function getUserCategories(): Promise<string[]> {
 export function useDailyPills() {
   const [pills, setPills] = useState<DailyPill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const pillsRef = useRef<DailyPill[]>([]);
   useEffect(() => { pillsRef.current = pills; }, [pills]);
 
+  // Invalida un fetch en curso (desmontaje o nuevo fetch) para no hacer setState
+  // sobre un polling obsoleto.
+  const fetchIdRef = useRef(0);
+
   const fetchPills = useCallback(async () => {
+    const myId = ++fetchIdRef.current;
+    const isStale = () => fetchIdRef.current !== myId;
+
     setIsLoading(true);
+    setIsGenerating(false);
     setError(null);
 
     const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
@@ -48,11 +76,13 @@ export function useDailyPills() {
       return;
     }
     const userId = sessionData.session.user.id;
-    const date = todayISO();
+    const dropHour = await getDropHour(userId);
+    const date = windowDate(dropHour);
+    if (isStale()) return;
 
     const { data, error: queryErr } = await supabase
       .from('daily_pills')
-      .select('id, category, title, body, date, is_saved, is_read')
+      .select(PILL_FIELDS)
       .eq('user_id', userId)
       .eq('date', date)
       .order('created_at', { ascending: true });
@@ -76,35 +106,56 @@ export function useDailyPills() {
       return;
     }
 
-    const { error: invokeErr } = await supabase.functions.invoke('generate-pills', {
-      body: { user_id: userId, categories, count: DEFAULT_PILL_COUNT, date },
-    });
+    // Primera vez del usuario (el batch nocturno aún no le generó píldoras): sondeamos la
+    // BD hasta que aparezcan. Si el onboarding ya disparó la generación (flag de hoy), no
+    // la relanzamos para no duplicar; si no, la disparamos aquí como red de seguridad
+    // (usuario que vuelve / hueco del batch). No tratamos el error del invoke como fatal
+    // porque la función puede seguir escribiendo aunque su request expire.
+    setIsGenerating(true);
+    if (!(await wasKickedToday())) {
+      void supabase.functions
+        .invoke('generate-pills', { body: { user_id: userId, categories, count: DEFAULT_PILL_COUNT, date } })
+        .catch((e) => console.warn('generate-pills invoke', e));
+    }
+    if (isStale()) return;
 
-    if (invokeErr) {
-      setError(invokeErr.message);
-      setIsLoading(false);
-      return;
+    for (let attempt = 0; attempt < MAX_POLLS; attempt++) {
+      await delay(POLL_INTERVAL_MS);
+      if (isStale()) return;
+
+      const { data: polled, error: pollErr } = await supabase
+        .from('daily_pills')
+        .select(PILL_FIELDS)
+        .eq('user_id', userId)
+        .eq('date', date)
+        .order('created_at', { ascending: true });
+      if (isStale()) return;
+
+      if (pollErr) {
+        setError(pollErr.message);
+        setIsGenerating(false);
+        setIsLoading(false);
+        return;
+      }
+      if (polled && polled.length > 0) {
+        setPills(polled as DailyPill[]);
+        setIsGenerating(false);
+        setIsLoading(false);
+        return;
+      }
     }
 
-    const { data: refetched, error: refetchErr } = await supabase
-      .from('daily_pills')
-      .select('id, category, title, body, date, is_saved, is_read')
-      .eq('user_id', userId)
-      .eq('date', date)
-      .order('created_at', { ascending: true });
-
-    if (refetchErr) {
-      setError(refetchErr.message);
-      setIsLoading(false);
-      return;
-    }
-
-    setPills((refetched ?? []) as DailyPill[]);
+    // Agotado el polling: limpiamos el flag para que Reintentar dispare una generación
+    // fresca si el kickoff original nunca llegó al servidor.
+    await clearKickoff();
+    setError('No pudimos preparar tus píldoras');
+    setIsGenerating(false);
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
     fetchPills();
+    return () => { fetchIdRef.current++; };
   }, [fetchPills]);
 
   const markAsRead = useCallback(async (pillId: string) => {
@@ -156,5 +207,5 @@ export function useDailyPills() {
 
   const allRead = pills.length > 0 && pills.every((p) => p.is_read);
 
-  return { pills, isLoading, error, markAsRead, saveToLibrary, setSaved, syncSavedStates, allRead, refetch: fetchPills };
+  return { pills, isLoading, isGenerating, error, markAsRead, saveToLibrary, setSaved, syncSavedStates, allRead, refetch: fetchPills };
 }

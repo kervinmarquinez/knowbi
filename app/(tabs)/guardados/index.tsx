@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAndroidTabBarPad } from '../../../lib/useAndroidTabBarPad';
 import { Link, Stack, useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Badge } from '../../../lib/ui/Badge';
@@ -23,9 +23,7 @@ const ALL_FILTER = 'Todas';
 
 export default function GuardadasScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const androidTabBarPad =
-    process.env.EXPO_OS === 'android' ? insets.bottom + 80 : 0;
+  const androidTabBarPad = useAndroidTabBarPad();
   const [pills, setPills] = useState<SavedPill[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>(ALL_FILTER);
   const [isAnon, setIsAnon] = useState<boolean | null>(null);

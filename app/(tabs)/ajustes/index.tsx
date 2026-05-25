@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, Platform, Alert, ActivityIndicator, Switch } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAndroidTabBarPad } from '../../../lib/useAndroidTabBarPad';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, {
@@ -16,6 +16,8 @@ import {
   requestNotificationPermission,
   registerForExpoPushToken,
   savePushTokenToSupabase,
+  getNotificationPermissionStatus,
+  openSystemNotificationSettings,
 } from '../../../lib/notifications';
 
 const NOTIFICATION_TIME_KEY = 'notification_time';
@@ -35,9 +37,12 @@ function formatHour(d: Date): string {
   return `${h}:${m}`;
 }
 
+type OSPermissionStatus = 'granted' | 'denied' | 'undetermined';
+
 type AjustesState = {
   notificationTime: Date;
   notificationEnabled: boolean;
+  osPermissionStatus: OSPermissionStatus;
   categoryCount: number;
   displayName: string | null;
   email: string | null;
@@ -61,14 +66,13 @@ function pickDisplayName(metadata: Record<string, unknown> | null | undefined): 
 
 export default function AjustesScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const androidTabBarPad =
-    process.env.EXPO_OS === 'android' ? insets.bottom + 80 : 0;
+  const androidTabBarPad = useAndroidTabBarPad();
   const appVersion = Constants.expoConfig?.version;
 
   const [state, setState] = useState<AjustesState>({
     notificationTime: parseTimeString('09:00'),
     notificationEnabled: false,
+    osPermissionStatus: 'undetermined',
     categoryCount: 0,
     displayName: null,
     email: null,
@@ -87,7 +91,7 @@ export default function AjustesScreen() {
         const user = userData?.user;
         const userId = user?.id;
 
-        const [prefResult, localTime, localEnabled, localCategories] = await Promise.all([
+        const [prefResult, localTime, localEnabled, localCategories, osPermissionStatus] = await Promise.all([
           userId
             ? supabase
                 .from('user_preferences')
@@ -98,6 +102,7 @@ export default function AjustesScreen() {
           AsyncStorage.getItem(NOTIFICATION_TIME_KEY),
           AsyncStorage.getItem(NOTIFICATION_ENABLED_KEY),
           AsyncStorage.getItem(USER_CATEGORIES_KEY),
+          getNotificationPermissionStatus(),
         ]);
 
         if (cancelled) return;
@@ -122,6 +127,7 @@ export default function AjustesScreen() {
         setState({
           notificationTime: parseTimeString(timeStr),
           notificationEnabled,
+          osPermissionStatus,
           categoryCount,
           displayName: pickDisplayName(user?.user_metadata),
           email: user?.email ?? null,
@@ -140,8 +146,12 @@ export default function AjustesScreen() {
 
   const onTimeChange = (_event: DateTimePickerEvent, selected?: Date) => {
     if (!selected) return;
-    const hhmm = formatHour(selected);
-    setState((prev) => ({ ...prev, notificationTime: selected }));
+    // La hora de drop opera por horas en punto (la ventana usa solo la hora). Redondeamos
+    // a HH:00 para que coincidan el drop, el push y la cuenta atrás de Completado.
+    const floored = new Date(selected);
+    floored.setMinutes(0, 0, 0);
+    const hhmm = formatHour(floored);
+    setState((prev) => ({ ...prev, notificationTime: floored }));
     Promise.all([
       AsyncStorage.setItem(NOTIFICATION_TIME_KEY, hhmm),
       (async () => {
@@ -172,9 +182,14 @@ export default function AjustesScreen() {
     try {
       const granted = await requestNotificationPermission();
       if (!granted) {
+        setState((s) => ({ ...s, osPermissionStatus: 'denied' }));
         Alert.alert(
-          'Notificaciones desactivadas',
+          'Notificaciones bloqueadas',
           'Activa las notificaciones de Knowbi en los ajustes del sistema para recibir tus píldoras diarias.',
+          [
+            { text: 'Ahora no', style: 'cancel' },
+            { text: 'Abrir ajustes', onPress: () => { openSystemNotificationSettings(); } },
+          ],
         );
         return;
       }
@@ -364,63 +379,90 @@ export default function AjustesScreen() {
 
         {/* Notification card */}
         <View className="bg-white rounded-card" style={[styles.card, { marginBottom: 16 }]}>
-          {state.notificationEnabled && (
+          {state.osPermissionStatus === 'denied' ? (
             <>
+              <Text
+                className="font-body-medium text-ink"
+                style={{ fontSize: 15, lineHeight: 15 * 1.3 }}
+              >
+                Notificaciones bloqueadas en el sistema
+              </Text>
+              <Text
+                className="font-body text-body-text-muted"
+                style={{ fontSize: 13, lineHeight: 13 * 1.4, marginTop: 6 }}
+              >
+                Knowbi tiene las notificaciones desactivadas en los ajustes del sistema. Actívalas ahí para recibir tus píldoras diarias.
+              </Text>
+              <View style={{ marginTop: 14 }}>
+                <Button
+                  variant="primary"
+                  label="Abrir ajustes"
+                  onPress={() => { openSystemNotificationSettings(); }}
+                />
+              </View>
+            </>
+          ) : (
+            <>
+              {/* La hora de drop es independiente del aviso: se muestra siempre. */}
+              {(
+                <>
+                  <View style={styles.row}>
+                    <Text
+                      className="font-body-medium text-ink"
+                      style={{ fontSize: 15, lineHeight: 15 * 1.3 }}
+                    >
+                      Hora de tus píldoras
+                    </Text>
+                    {Platform.OS === 'ios' ? (
+                      <DateTimePicker
+                        value={state.notificationTime}
+                        mode="time"
+                        display="compact"
+                        onChange={onTimeChange}
+                      />
+                    ) : (
+                      <Pressable
+                        onPress={openAndroidTimePicker}
+                        style={styles.timeChip}
+                        accessibilityRole="button"
+                        accessibilityLabel="Cambiar hora de aviso"
+                      >
+                        <Text
+                          style={{
+                            fontFamily: 'DMSans_500Medium',
+                            fontSize: 16,
+                            lineHeight: 16 * 1.2,
+                            color: '#1A1A2E',
+                          }}
+                        >
+                          {formatHour(state.notificationTime)}
+                        </Text>
+                      </Pressable>
+                    )}
+                  </View>
+                  <View style={styles.divider} />
+                </>
+              )}
               <View style={styles.row}>
                 <Text
                   className="font-body-medium text-ink"
-                  style={{ fontSize: 15, lineHeight: 15 * 1.3 }}
+                  style={{ fontSize: 15, lineHeight: 15 * 1.3, flex: 1, paddingRight: 12 }}
                 >
-                  Hora de aviso
+                  {state.notificationEnabled
+                    ? 'Desactivar notificaciones'
+                    : 'Activar notificaciones'}
                 </Text>
-                {Platform.OS === 'ios' ? (
-                  <DateTimePicker
-                    value={state.notificationTime}
-                    mode="time"
-                    display="compact"
-                    onChange={onTimeChange}
-                  />
-                ) : (
-                  <Pressable
-                    onPress={openAndroidTimePicker}
-                    style={styles.timeChip}
-                    accessibilityRole="button"
-                    accessibilityLabel="Cambiar hora de aviso"
-                  >
-                    <Text
-                      style={{
-                        fontFamily: 'DMSans_500Medium',
-                        fontSize: 16,
-                        lineHeight: 16 * 1.2,
-                        color: '#1A1A2E',
-                      }}
-                    >
-                      {formatHour(state.notificationTime)}
-                    </Text>
-                  </Pressable>
-                )}
+                <Switch
+                  value={state.notificationEnabled}
+                  onValueChange={onToggleNotifications}
+                  disabled={activating}
+                  trackColor={{ false: '#E0DED8', true: '#7F77DD' }}
+                  thumbColor="#FFFFFF"
+                  ios_backgroundColor="#E0DED8"
+                />
               </View>
-              <View style={styles.divider} />
             </>
           )}
-          <View style={styles.row}>
-            <Text
-              className="font-body-medium text-ink"
-              style={{ fontSize: 15, lineHeight: 15 * 1.3, flex: 1, paddingRight: 12 }}
-            >
-              {state.notificationEnabled
-                ? 'Desactivar notificaciones'
-                : 'Activar notificaciones'}
-            </Text>
-            <Switch
-              value={state.notificationEnabled}
-              onValueChange={onToggleNotifications}
-              disabled={activating}
-              trackColor={{ false: '#E0DED8', true: '#7F77DD' }}
-              thumbColor="#FFFFFF"
-              ios_backgroundColor="#E0DED8"
-            />
-          </View>
         </View>
 
         {/* Categories */}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, Dimensions, Alert } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -10,41 +10,146 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   runOnJS,
-  interpolate,
-  Extrapolation,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { TopBar } from '../../lib/ui/TopBar';
 import { ProgressDots } from '../../lib/ui/ProgressDots';
 import { PillCard } from '../../lib/ui/PillCard';
 import { useDailyPills } from '../../hooks/useDailyPills';
+import { useAndroidTabBarPad } from '../../lib/useAndroidTabBarPad';
 import { supabase } from '../../lib/supabase';
+import { isReviewing } from '../../lib/completedReview';
 import type { Category } from '../../lib/ui/categories';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_DISTANCE_THRESHOLD = 80;
 const SWIPE_VELOCITY_THRESHOLD = 500;
 const DRAG_PROGRESS_DENOM = SCREEN_WIDTH / 2;
+const FLY_OFF_X = -(SCREEN_WIDTH + 80);
+
+const SPRING_RETURN = { damping: 15, stiffness: 120 };
+const SPRING_DISMISS = { damping: 22, stiffness: 100, overshootClamping: true };
+
+// Ventana de cards montadas alrededor del índice actual.
+const WINDOW_BEHIND = 1; // la anterior (para retroceder)
+const WINDOW_AHEAD = 3; // las siguientes apiladas detrás
+
+type StackPill = {
+  id: string;
+  category: string;
+  title: string;
+  body: string;
+  date: string;
+  is_saved: boolean;
+};
+
+// Una card persistente. Su CONTENIDO nunca cambia (keyed por id); solo su POSICIÓN,
+// derivada en el hilo de UI de (idxSV, translateX). Por eso avanzar no produce saltos:
+// la card de detrás que ya muestra la siguiente píldora es la misma que pasa al frente.
+function StackCard({
+  pill,
+  absIndex,
+  idx,
+  idxSV,
+  translateX,
+  total,
+  onSave,
+}: {
+  pill: StackPill;
+  absIndex: number;
+  idx: number;
+  idxSV: SharedValue<number>;
+  translateX: SharedValue<number>;
+  total: number;
+  onSave?: () => void;
+}) {
+  const isFront = absIndex === idx;
+  const offsetJS = absIndex - idx;
+  const zIndex = offsetJS === 0 ? 30 : offsetJS < 0 ? 29 : Math.max(0, 21 - offsetJS);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const offset = absIndex - idxSV.value;
+    const x = translateX.value;
+
+    // Card del frente: sigue el arrastre con ligera rotación.
+    if (offset === 0) {
+      return { transform: [{ translateX: x }, { rotate: `${x / 30}deg` }], opacity: 1 };
+    }
+
+    // Cards de detrás: escalan/atenúan hacia el frente conforme se arrastra hacia delante.
+    if (offset > 0) {
+      const forwardP = Math.min(Math.max(0, -x) / DRAG_PROGRESS_DENOM, 1);
+      const d = offset - forwardP; // profundidad continua: 0 = frente
+      return {
+        transform: [{ translateY: 8 * d }, { scale: 1 - 0.04 * d }],
+        opacity: Math.max(0, Math.min(1, 1 - 0.35 * d)),
+      };
+    }
+
+    // Cards anteriores: aparcadas fuera de pantalla a la izquierda; entran al retroceder.
+    const px = x + offset * SCREEN_WIDTH;
+    return { transform: [{ translateX: px }, { rotate: `${px / 30}deg` }], opacity: 1 };
+  });
+
+  return (
+    <Animated.View
+      pointerEvents={isFront ? 'box-none' : 'none'}
+      style={[StyleSheet.absoluteFill, { zIndex }, animatedStyle]}
+    >
+      <PillCard
+        pill={{ category: pill.category as Category, title: pill.title, body: pill.body, date: pill.date }}
+        index={absIndex}
+        total={total}
+        saved={pill.is_saved}
+        onSave={isFront ? onSave : undefined}
+      />
+    </Animated.View>
+  );
+}
 
 export default function HoyScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { pills, isLoading, error, markAsRead, setSaved, syncSavedStates, allRead, refetch } = useDailyPills();
+  const { pills, isLoading, isGenerating, error, markAsRead, setSaved, syncSavedStates, allRead, refetch } = useDailyPills();
   const [idx, setIdx] = useState(0);
   const [streak, setStreak] = useState(0);
   const [isAnon, setIsAnon] = useState(false);
   const translateX = useSharedValue(0);
-  const androidTabBarPad =
-    process.env.EXPO_OS === 'android' ? insets.bottom + 80 : 0;
+  const idxSV = useSharedValue(0);
+  const androidTabBarPad = useAndroidTabBarPad();
+
+  // Espejo de idx en el hilo de UI para posicionar las cards sin esperar al render.
+  useEffect(() => { idxSV.value = idx; }, [idx]);
 
   const allReadRef = useRef(false);
   useEffect(() => { allReadRef.current = allRead; }, [allRead]);
+  const isLoadingRef = useRef(isLoading);
+  useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
+  const errorRef = useRef(error);
+  useEffect(() => { errorRef.current = error; }, [error]);
+  const pillsRef = useRef(pills);
+  useEffect(() => { pillsRef.current = pills; }, [pills]);
+
+  // Si el set del día ya está leído, aterrizamos en Completado por defecto (opción A), salvo
+  // que el usuario haya pulsado "Volver a las píldoras de hoy" para releer este set (flag de
+  // relectura por fecha). Lee de refs para no dispararse durante el swipe en vivo: ese caso
+  // lo maneja goCompleted con un push.
+  const routeOrReset = useCallback(async () => {
+    if (isLoadingRef.current || errorRef.current || pillsRef.current.length === 0) return;
+    if (!allReadRef.current) return;
+    const setDate = pillsRef.current[0]?.date;
+    if (setDate && (await isReviewing(setDate))) {
+      setIdx(0);
+      return;
+    }
+    router.replace('/completed');
+  }, [router]);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      if (allReadRef.current) setIdx(0);
-
+      translateX.value = 0;
       syncSavedStates();
+      void routeOrReset();
 
       async function loadStreak() {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -68,8 +173,14 @@ export default function HoyScreen() {
 
       loadStreak();
       return () => { cancelled = true; };
-    }, [syncSavedStates]),
+    }, [syncSavedStates, routeOrReset]),
   );
+
+  // Cold-start: al terminar la carga inicial, evalúa el aterrizaje. Clave solo en isLoading
+  // (no en allRead) para no colisionar con el push de goCompleted durante el swipe en vivo.
+  useEffect(() => {
+    if (!isLoading) void routeOrReset();
+  }, [isLoading, routeOrReset]);
 
   useEffect(() => {
     if (!isLoading && !error && pills.length === 0) {
@@ -89,21 +200,6 @@ export default function HoyScreen() {
     );
   }, [router]);
 
-  const advance = async () => {
-    const pill = pills[idx];
-    if (!pill) return;
-    await markAsRead(pill.id);
-    if (idx + 1 < pills.length) {
-      setIdx(idx + 1);
-    } else {
-      router.push('/completed');
-    }
-  };
-
-  const goBack = () => {
-    if (idx > 0) setIdx(idx - 1);
-  };
-
   const handleSave = async () => {
     const pill = pills[idx];
     if (!pill) return;
@@ -115,14 +211,51 @@ export default function HoyScreen() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const onSwipeForward = () => {
-    translateX.value = 0;
-    advance();
+  // Commits de avance/retroceso. idxSV ya se actualizó en el hilo de UI dentro del
+  // gesto; aquí solo sincronizamos el estado de React (contenido de la ventana).
+  const commitForward = () => {
+    const pill = pills[idx];
+    setIdx(idx + 1);
+    if (pill) void markAsRead(pill.id);
   };
 
-  const onSwipeBackward = () => {
-    goBack();
-    translateX.value = 0;
+  const commitBack = () => {
+    if (idx > 0) setIdx(idx - 1);
+  };
+
+  const goCompleted = () => {
+    const pill = pills[idx];
+    if (pill) void markAsRead(pill.id);
+    router.push('/completed');
+  };
+
+  const pillsLen = pills.length;
+
+  // Tap en las flechas: misma mecánica que el swipe (animación de salida + commit), con
+  // velocidad 0. Se ignora si ya hay una animación en curso para no descuadrar el índice.
+  const tapForward = () => {
+    if (translateX.value !== 0) return;
+    const isLast = idx + 1 >= pillsLen;
+    translateX.value = withSpring(FLY_OFF_X, SPRING_DISMISS, (finished) => {
+      if (!finished) return;
+      if (isLast) {
+        runOnJS(goCompleted)();
+        return;
+      }
+      idxSV.value = idxSV.value + 1;
+      translateX.value = 0;
+      runOnJS(commitForward)();
+    });
+  };
+
+  const tapBack = () => {
+    if (idx === 0 || translateX.value !== 0) return;
+    translateX.value = withSpring(SCREEN_WIDTH, SPRING_DISMISS, (finished) => {
+      if (!finished) return;
+      idxSV.value = idxSV.value - 1;
+      translateX.value = 0;
+      runOnJS(commitBack)();
+    });
   };
 
   const pan = Gesture.Pan()
@@ -137,59 +270,58 @@ export default function HoyScreen() {
         Math.abs(e.velocityX) > SWIPE_VELOCITY_THRESHOLD;
 
       if (!shouldDismiss) {
-        translateX.value = withSpring(0, { damping: 15, stiffness: 120 });
+        translateX.value = withSpring(0, SPRING_RETURN);
         return;
       }
 
       const isBackward = e.translationX > 0;
 
       if (isBackward && idx === 0) {
-        translateX.value = withSpring(0, { damping: 15, stiffness: 120 });
+        translateX.value = withSpring(0, SPRING_RETURN);
         return;
       }
 
-      const target = isBackward ? SCREEN_WIDTH : -(SCREEN_WIDTH + 80);
+      if (isBackward) {
+        translateX.value = withSpring(
+          SCREEN_WIDTH,
+          { ...SPRING_DISMISS, velocity: e.velocityX },
+          (finished) => {
+            if (!finished) return;
+            idxSV.value = idxSV.value - 1;
+            translateX.value = 0;
+            runOnJS(commitBack)();
+          },
+        );
+        return;
+      }
+
+      const isLast = idx + 1 >= pillsLen;
       translateX.value = withSpring(
-        target,
-        { velocity: e.velocityX, damping: 22, stiffness: 100, overshootClamping: true },
+        FLY_OFF_X,
+        { ...SPRING_DISMISS, velocity: e.velocityX },
         (finished) => {
-          if (finished) runOnJS(isBackward ? onSwipeBackward : onSwipeForward)();
+          if (!finished) return;
+          if (isLast) {
+            runOnJS(goCompleted)();
+            return;
+          }
+          idxSV.value = idxSV.value + 1;
+          translateX.value = 0;
+          runOnJS(commitForward)();
         },
       );
     });
 
-  const animatedCardStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: translateX.value },
-      { rotate: `${translateX.value / 30}deg` },
-    ],
-  }));
-
-  const animatedPrevStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value - SCREEN_WIDTH }],
-  }));
-
-  const animatedMidStyle = useAnimatedStyle(() => {
-    const forwardP = Math.min(Math.max(0, -translateX.value) / DRAG_PROGRESS_DENOM, 1);
-    return {
-      transform: [
-        { translateY: interpolate(forwardP, [0, 1], [8, 0], Extrapolation.CLAMP) },
-        { scale: interpolate(forwardP, [0, 1], [0.96, 1], Extrapolation.CLAMP) },
-      ],
-      opacity: interpolate(forwardP, [0, 1], [0.6, 1], Extrapolation.CLAMP),
-    };
-  });
-
-  const animatedBackStyle = useAnimatedStyle(() => {
-    const forwardP = Math.min(Math.max(0, -translateX.value) / DRAG_PROGRESS_DENOM, 1);
-    return {
-      transform: [
-        { translateY: interpolate(forwardP, [0, 1], [16, 8], Extrapolation.CLAMP) },
-        { scale: interpolate(forwardP, [0, 1], [0.92, 0.96], Extrapolation.CLAMP) },
-      ],
-      opacity: interpolate(forwardP, [0, 1], [0.3, 0.6], Extrapolation.CLAMP),
-    };
-  });
+  if (isGenerating) {
+    return (
+      <SafeAreaView className="flex-1 bg-surface items-center justify-center" edges={['top']}>
+        <ActivityIndicator size="large" color="#7F77DD" />
+        <Text className="font-body text-body-text" style={{ fontSize: 15, textAlign: 'center', marginHorizontal: 32, marginTop: 20 }}>
+          Preparando tus 5 píldoras…
+        </Text>
+      </SafeAreaView>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -215,11 +347,16 @@ export default function HoyScreen() {
   const pill = pills[idx];
   if (!pill) return null;
 
-  const prevPill = idx > 0 ? pills[idx - 1] : null;
-  const isSaved = pill.is_saved;
-  const showBack = idx + 2 < pills.length;
-  const showMid = idx + 1 < pills.length;
   const canGoBack = idx > 0;
+
+  // Ventana de cards montadas (anterior + actual + siguientes apiladas). Cada una
+  // mantiene su identidad por id, así que al cambiar idx no se desmontan ni cambian
+  // de contenido: solo recalculan su posición.
+  const windowCards: { pill: StackPill; absIndex: number }[] = [];
+  for (let i = idx - WINDOW_BEHIND; i <= idx + WINDOW_AHEAD; i++) {
+    const p = pills[i];
+    if (p) windowCards.push({ pill: p, absIndex: i });
+  }
 
   return (
     <SafeAreaView
@@ -230,44 +367,22 @@ export default function HoyScreen() {
       <TopBar streak={streak} />
       <ProgressDots total={pills.length} current={idx} />
       <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8 }}>
-        <View style={{ flex: 1, position: 'relative' }}>
-          {showBack && (
-            <Animated.View
-              pointerEvents="none"
-              style={[styles.cardShell, animatedBackStyle]}
-            />
-          )}
-          {showMid && (
-            <Animated.View
-              pointerEvents="none"
-              style={[styles.cardShell, animatedMidStyle]}
-            />
-          )}
-          {prevPill && (
-            <Animated.View
-              pointerEvents="none"
-              style={[StyleSheet.absoluteFill, animatedPrevStyle]}
-            >
-              <PillCard
-                pill={{ category: prevPill.category as Category, title: prevPill.title, body: prevPill.body, date: prevPill.date }}
-                index={idx - 1}
+        <GestureDetector gesture={pan}>
+          <View style={{ flex: 1, position: 'relative' }}>
+            {windowCards.map(({ pill: p, absIndex }) => (
+              <StackCard
+                key={p.id}
+                pill={p}
+                absIndex={absIndex}
+                idx={idx}
+                idxSV={idxSV}
+                translateX={translateX}
                 total={pills.length}
-                saved={prevPill.is_saved}
-              />
-            </Animated.View>
-          )}
-          <GestureDetector gesture={pan}>
-            <Animated.View style={[StyleSheet.absoluteFill, animatedCardStyle]}>
-              <PillCard
-                pill={{ category: pill.category as Category, title: pill.title, body: pill.body, date: pill.date }}
-                index={idx}
-                total={pills.length}
-                saved={isSaved}
                 onSave={handleSave}
               />
-            </Animated.View>
-          </GestureDetector>
-        </View>
+            ))}
+          </View>
+        </GestureDetector>
       </View>
       <View
         style={{
@@ -278,32 +393,24 @@ export default function HoyScreen() {
           paddingVertical: 16,
         }}
       >
-        <Ionicons
-          name="arrow-back"
-          size={16}
-          color="#888885"
+        <TouchableOpacity
+          onPress={tapBack}
+          disabled={!canGoBack}
+          hitSlop={16}
           style={{ opacity: canGoBack ? 1 : 0.3 }}
-        />
+        >
+          <Ionicons name="arrow-back" size={16} color="#888885" />
+        </TouchableOpacity>
         <Text style={styles.hintText}>Desliza</Text>
-        <Ionicons name="arrow-forward" size={16} color="#888885" />
+        <TouchableOpacity onPress={tapForward} hitSlop={16}>
+          <Ionicons name="arrow-forward" size={16} color="#888885" />
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  cardShell: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderCurve: 'continuous',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E0DED8',
-  },
   hintText: {
     fontFamily: 'DMSans_500Medium',
     fontSize: 12,

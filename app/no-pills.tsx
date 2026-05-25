@@ -7,22 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TopBar } from '../lib/ui/TopBar';
 import { Button } from '../lib/ui/Button';
 import { supabase } from '../lib/supabase';
-
-function toDateString(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function minutesUntil(hhmm: string): number {
-  const [hh, mm] = hhmm.split(':').map(Number);
-  const now = new Date();
-  const target = new Date(now);
-  target.setHours(hh, mm, 0, 0);
-  if (target <= now) target.setDate(target.getDate() + 1);
-  return Math.round((target.getTime() - now.getTime()) / 60_000);
-}
+import { windowDate, dropHourFromHHMM, minutesUntilDrop } from '../lib/dropWindow';
 
 export default function NoPillsYetScreen() {
   const router = useRouter();
@@ -40,13 +25,26 @@ export default function NoPillsYetScreen() {
         return;
       }
       const userId = userData.user.id;
-      const today = toDateString(new Date());
+
+      // Hora de drop primero: define qué set ("ventana") debe existir ahora mismo.
+      let hhmm = await AsyncStorage.getItem('notification_time');
+      if (!hhmm) {
+        const { data: prefRow } = await supabase
+          .from('user_preferences')
+          .select('notification_time')
+          .eq('user_id', userId)
+          .single();
+        hhmm = prefRow?.notification_time ?? null;
+      }
+      if (cancelled) return;
+      if (hhmm) setScheduledTime(hhmm);
+      const date = windowDate(dropHourFromHHMM(hhmm));
 
       const { data: pillCheck, error: pillCheckErr } = await supabase
         .from('daily_pills')
         .select('id')
         .eq('user_id', userId)
-        .eq('date', today)
+        .eq('date', date)
         .limit(1);
 
       if (pillCheckErr) {
@@ -58,31 +56,14 @@ export default function NoPillsYetScreen() {
         return;
       }
 
-      const [streakRes, notifTimeFromStorage] = await Promise.all([
-        supabase
-          .from('user_streaks')
-          .select('current_streak')
-          .eq('user_id', userId)
-          .single(),
-        AsyncStorage.getItem('notification_time'),
-      ]);
+      const { data: streakData } = await supabase
+        .from('user_streaks')
+        .select('current_streak')
+        .eq('user_id', userId)
+        .single();
 
       if (!cancelled) {
-        if (streakRes.data) setStreak(streakRes.data.current_streak);
-
-        if (notifTimeFromStorage) {
-          setScheduledTime(notifTimeFromStorage);
-        } else {
-          const { data: prefRow } = await supabase
-            .from('user_preferences')
-            .select('notification_time')
-            .eq('user_id', userId)
-            .single();
-          if (!cancelled && prefRow?.notification_time) {
-            setScheduledTime(prefRow.notification_time);
-          }
-        }
-
+        if (streakData) setStreak(streakData.current_streak);
         setReady(true);
       }
     }
@@ -93,7 +74,7 @@ export default function NoPillsYetScreen() {
 
   if (!ready) return null;
 
-  const minutesLeft = scheduledTime ? minutesUntil(scheduledTime) : null;
+  const minutesLeft = scheduledTime ? minutesUntilDrop(dropHourFromHHMM(scheduledTime)) : null;
 
   return (
     <SafeAreaView className="flex-1 bg-surface" edges={['top', 'bottom']}>

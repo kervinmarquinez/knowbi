@@ -3,38 +3,24 @@ import {
   View,
   Text,
   Pressable,
-  Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker, {
-  DateTimePickerAndroid,
-  type DateTimePickerEvent,
-} from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Button } from '../../lib/ui/Button';
 import { supabase } from '../../lib/supabase';
+import { currentMadridDropHHMM } from '../../lib/dropWindow';
 import {
   requestNotificationPermission,
   registerForExpoPushToken,
   savePushTokenToSupabase,
+  openSystemNotificationSettings,
 } from '../../lib/notifications';
 
 const NOTIFICATION_TIME_KEY = 'notification_time';
 const NOTIFICATION_ENABLED_KEY = 'notification_enabled';
-
-function formatHour(date: Date) {
-  const h = String(date.getHours()).padStart(2, '0');
-  const m = String(date.getMinutes()).padStart(2, '0');
-  return `${h}:${m}`;
-}
-
-function defaultHour() {
-  const d = new Date();
-  d.setHours(9, 0, 0, 0);
-  return d;
-}
 
 async function syncPreferencesToSupabase(input: {
   notificationTime: string;
@@ -62,43 +48,36 @@ async function syncPreferencesToSupabase(input: {
 
 export default function NotificationOnboarding() {
   const router = useRouter();
-  const [hour, setHour] = useState<Date>(defaultHour);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const onIosChange = (_e: DateTimePickerEvent, selected?: Date) => {
-    if (selected) setHour(selected);
-  };
-
-  const openAndroidPicker = () => {
-    DateTimePickerAndroid.open({
-      value: hour,
-      mode: 'time',
-      is24Hour: true,
-      display: 'spinner',
-      onChange: (_e, selected) => {
-        if (selected) setHour(selected);
-        setPickerOpen(true);
-      },
-    });
-    setPickerOpen(true);
-  };
-
+  // La hora de drop se fija a la hora a la que el usuario llega a esta pantalla (≈ created_at),
+  // sin que tenga que elegirla. Editable después en Ajustes.
   const finish = useCallback(
     async (enable: boolean) => {
       if (submitting) return;
       setSubmitting(true);
-      const formatted = formatHour(hour);
+      const dropHHMM = currentMadridDropHHMM();
       let notificationEnabled = false;
       try {
-        await AsyncStorage.setItem(NOTIFICATION_TIME_KEY, formatted);
+        await AsyncStorage.setItem(NOTIFICATION_TIME_KEY, dropHHMM);
         if (enable) {
           const granted = await requestNotificationPermission();
-          if (granted) notificationEnabled = true;
+          if (granted) {
+            notificationEnabled = true;
+          } else {
+            Alert.alert(
+              'Notificaciones bloqueadas',
+              'Activa las notificaciones de Knowbi en los ajustes del sistema para recibir tus píldoras diarias.',
+              [
+                { text: 'Ahora no', style: 'cancel' },
+                { text: 'Abrir ajustes', onPress: () => { openSystemNotificationSettings(); } },
+              ],
+            );
+          }
         }
         await AsyncStorage.setItem(NOTIFICATION_ENABLED_KEY, String(notificationEnabled));
         await syncPreferencesToSupabase({
-          notificationTime: formatted,
+          notificationTime: dropHHMM,
           notificationEnabled,
         });
         if (notificationEnabled) {
@@ -111,22 +90,8 @@ export default function NotificationOnboarding() {
         router.replace('/(tabs)');
       }
     },
-    [hour, router, submitting],
+    [router, submitting],
   );
-
-  const onActivate = () => {
-    if (Platform.OS === 'ios') {
-      // iOS shows picker inline; user already saw it after opening
-      if (!pickerOpen) {
-        setPickerOpen(true);
-        return;
-      }
-    } else if (!pickerOpen) {
-      openAndroidPicker();
-      return;
-    }
-    finish(true);
-  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F7F7FC' }} edges={['top', 'bottom']}>
@@ -168,71 +133,15 @@ export default function NotificationOnboarding() {
             marginTop: 10,
           }}
         >
-          Elige a qué hora quieres recibir tu aviso diario.
+          Te avisaremos cuando lleguen tus 5 píldoras de cada día.
         </Text>
-
-        {pickerOpen ? (
-          Platform.OS === 'ios' ? (
-            <View style={{ marginTop: 16, alignItems: 'center' }}>
-              <DateTimePicker
-                value={hour}
-                mode="time"
-                display="spinner"
-                onChange={onIosChange}
-                style={{ width: 220, height: 180 }}
-              />
-            </View>
-          ) : (
-            <Pressable
-              onPress={openAndroidPicker}
-              style={{
-                marginTop: 28,
-                paddingHorizontal: 24,
-                paddingVertical: 16,
-                borderRadius: 14,
-                backgroundColor: '#FFFFFF',
-                borderWidth: 1,
-                borderColor: '#E0DED8',
-                alignItems: 'center',
-                minWidth: 160,
-              }}
-            >
-              <Text
-                style={{ fontFamily: 'DMSans_500Medium', fontSize: 12, color: '#888885' }}
-              >
-                Hora de aviso
-              </Text>
-              <Text
-                style={{
-                  fontFamily: 'Nunito_800ExtraBold',
-                  fontSize: 36,
-                  color: '#1A1A2E',
-                  marginTop: 4,
-                }}
-              >
-                {formatHour(hour)}
-              </Text>
-            </Pressable>
-          )
-        ) : (
-          <Text
-            style={{
-              fontFamily: 'DMSans_400Regular',
-              fontSize: 13,
-              color: '#888885',
-              marginTop: 24,
-            }}
-          >
-            Por defecto te avisaremos a las 09:00.
-          </Text>
-        )}
       </View>
 
       <View style={{ paddingHorizontal: 20, paddingBottom: 12, gap: 8 }}>
         <Button
           variant="primary"
-          label={pickerOpen ? 'Activar notificaciones' : 'Elegir hora y activar'}
-          onPress={onActivate}
+          label="Activar notificaciones"
+          onPress={() => finish(true)}
           disabled={submitting}
         />
         <Pressable

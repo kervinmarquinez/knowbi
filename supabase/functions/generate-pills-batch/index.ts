@@ -31,6 +31,10 @@ function requireEnv(name: string): string {
 
 const SUPABASE_URL = requireEnv("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+// JWT service_role legacy: el gateway de Edge Functions (verify_jwt) solo acepta
+// JWTs, no las claves nuevas sb_secret_. SUPABASE_SERVICE_ROLE_KEY sirve para Postgres
+// pero no para llamar a otra función, así que usamos este secreto aparte para esa llamada.
+const SERVICE_ROLE_JWT = requireEnv("SERVICE_ROLE_JWT");
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -59,7 +63,7 @@ async function callGeneratePills(
   const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-pills`, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      "Authorization": `Bearer ${SERVICE_ROLE_JWT}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ user_id: userId, categories, count, date }),
@@ -103,10 +107,14 @@ Deno.serve(async (_req) => {
   const date = tomorrowISO();
   const summary: Summary = { processed: 0, generated: 0, cached: 0, errors: 0, skipped: 0 };
 
-  // Activo = abrió la app en las últimas 24h.
+  // Activo = abrió la app en los últimos 7 días.
+  // Ventana amplia a propósito: cubre al usuario que vuelve tras saltarse
+  // algún día sin que caiga en la generación en tiempo real al abrir.
+  // Coste extra marginal: shared_pills cachea la generación entre usuarios
+  // con las mismas categorías (solo el primero de cada combo paga Haiku).
   // No filtramos por notification_enabled aquí: el sender se encarga de eso.
   // categories es NOT NULL por schema; basta con que la fila exista.
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const { data: users, error } = await supabase
     .from("user_preferences")
     .select("user_id, categories")

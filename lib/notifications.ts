@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { supabase } from './supabase';
@@ -37,6 +37,19 @@ function getProjectId(): string | undefined {
     Constants.easConfig?.projectId ||
     (Constants as { manifest?: { extra?: { eas?: { projectId?: string } } } }).manifest?.extra?.eas?.projectId
   );
+}
+
+export async function getNotificationPermissionStatus(): Promise<
+  'granted' | 'denied' | 'undetermined'
+> {
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status === 'granted') return 'granted';
+  if (status === 'denied') return 'denied';
+  return 'undetermined';
+}
+
+export async function openSystemNotificationSettings(): Promise<void> {
+  await Linking.openSettings();
 }
 
 export async function requestNotificationPermission(): Promise<boolean> {
