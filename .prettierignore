@@ -1,0 +1,11 @@
+node_modules
+.expo
+dist
+android
+ios
+supabase
+.agents
+.claude
+package-lock.json
+nativewind-env.d.ts
+*.md
