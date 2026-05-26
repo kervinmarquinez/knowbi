@@ -8,9 +8,7 @@ const OAUTH_REDIRECT_URL = 'knowbi://auth-callback';
 
 WebBrowser.maybeCompleteAuthSession();
 
-export type AuthResult =
-  | { success: true; session: Session }
-  | { success: false; error: string };
+export type AuthResult = { success: true; session: Session } | { success: false; error: string };
 
 export type SignUpResult =
   | { kind: 'session'; session: Session }
@@ -36,7 +34,11 @@ function translateAuthError(msg: string): string {
   if (m.includes('token has expired') || m.includes('otp expired')) {
     return 'El código ha caducado. Solicita uno nuevo.';
   }
-  if (m.includes('invalid otp') || m.includes('token is invalid') || m.includes('token not found')) {
+  if (
+    m.includes('invalid otp') ||
+    m.includes('token is invalid') ||
+    m.includes('token not found')
+  ) {
     return 'Código inválido. Comprueba los dígitos e inténtalo otra vez.';
   }
   if (m.includes('signups not allowed')) {
@@ -90,11 +92,7 @@ export async function hasValuableAnonData(): Promise<boolean> {
         .eq('user_id', userId)
         .or('is_read.eq.true,is_saved.eq.true')
         .limit(1),
-      supabase
-        .from('user_streaks')
-        .select('current_streak')
-        .eq('user_id', userId)
-        .maybeSingle(),
+      supabase.from('user_streaks').select('current_streak').eq('user_id', userId).maybeSingle(),
     ]);
 
     if (pillsRes.data && pillsRes.data.length > 0) return true;
@@ -174,7 +172,9 @@ export async function verifyEmailOtp(email: string, token: string): Promise<Auth
   return { success: true, session: data.session };
 }
 
-export async function updatePassword(newPassword: string): Promise<{ ok: boolean; error?: string }> {
+export async function updatePassword(
+  newPassword: string,
+): Promise<{ ok: boolean; error?: string }> {
   const session = await getSession();
   if (!session) return { ok: false, error: 'Sesión expirada. Vuelve a abrir el enlace del email.' };
   const { error } = await supabase.auth.updateUser({ password: newPassword });
@@ -213,7 +213,9 @@ export async function getEffectiveCategories(): Promise<string[]> {
   return [];
 }
 
-function parseTokensFromCallbackUrl(url: string): { access_token: string; refresh_token: string } | null {
+function parseTokensFromCallbackUrl(
+  url: string,
+): { access_token: string; refresh_token: string } | null {
   const hashIdx = url.indexOf('#');
   if (hashIdx === -1) return null;
   const fragment = url.slice(hashIdx + 1);
@@ -303,9 +305,7 @@ export async function signInWithGoogle(intent: GoogleIntent = 'login'): Promise<
   return { success: false, error: 'Inicio de sesión cancelado o no completado' };
 }
 
-export type ConvertResult =
-  | { success: true }
-  | { success: false; error: string };
+export type ConvertResult = { success: true } | { success: false; error: string };
 
 export async function convertAnonymousToReal(email: string): Promise<ConvertResult> {
   const session = await getSession();

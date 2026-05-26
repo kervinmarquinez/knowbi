@@ -61,6 +61,7 @@ export default function CompletedScreen() {
     // Háptica sincronizada con el rebote de la llama
     const t = setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 250);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- animación de entrada solo al montar; las deps son shared values estables
   }, []);
 
   // Conteo del número + clímax, una vez que la racha llega de Supabase
@@ -79,6 +80,7 @@ export default function CompletedScreen() {
       800,
     );
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo depende de streak; el resto son shared values estables
   }, [streak]);
 
   const titleStyle = useAnimatedStyle(() => ({
@@ -101,9 +103,7 @@ export default function CompletedScreen() {
     opacity: buttonsOpacity.value,
     transform: [{ translateY: buttonsY.value }],
   }));
-  const countProps = useAnimatedProps(
-    () => ({ text: String(Math.round(count.value)) }) as object,
-  );
+  const countProps = useAnimatedProps(() => ({ text: String(Math.round(count.value)) }) as object);
 
   useEffect(() => {
     let cancelled = false;
@@ -141,7 +141,9 @@ export default function CompletedScreen() {
     }
 
     syncStreak();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Show the last known value while loading to keep the layout stable
@@ -151,10 +153,7 @@ export default function CompletedScreen() {
     <SafeAreaView className="flex-1 bg-surface" edges={['top', 'bottom']}>
       <TopBar streak={streak ?? 0} />
       <View className="flex-1 items-center justify-center" style={{ paddingHorizontal: 20 }}>
-        <Animated.Text
-          style={titleStyle}
-          className="font-display text-ink text-center"
-        >
+        <Animated.Text style={titleStyle} className="font-display text-ink text-center">
           <Text style={{ fontSize: 28, lineHeight: 28 * 1.2 }}>¡Ya tienes las 5 de hoy!</Text>
         </Animated.Text>
 

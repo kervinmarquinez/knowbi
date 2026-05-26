@@ -1,5 +1,15 @@
 import { useCallback, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, Platform, Alert, ActivityIndicator, Switch } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Pressable,
+  Platform,
+  Alert,
+  ActivityIndicator,
+  Switch,
+} from 'react-native';
 import { useAndroidTabBarPad } from '../../../lib/useAndroidTabBarPad';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -91,27 +101,27 @@ export default function AjustesScreen() {
         const user = userData?.user;
         const userId = user?.id;
 
-        const [prefResult, localTime, localEnabled, localCategories, osPermissionStatus] = await Promise.all([
-          userId
-            ? supabase
-                .from('user_preferences')
-                .select('notification_time, notification_enabled, categories')
-                .eq('user_id', userId)
-                .maybeSingle<PrefRow>()
-            : Promise.resolve({ data: null as PrefRow | null }),
-          AsyncStorage.getItem(NOTIFICATION_TIME_KEY),
-          AsyncStorage.getItem(NOTIFICATION_ENABLED_KEY),
-          AsyncStorage.getItem(USER_CATEGORIES_KEY),
-          getNotificationPermissionStatus(),
-        ]);
+        const [prefResult, localTime, localEnabled, localCategories, osPermissionStatus] =
+          await Promise.all([
+            userId
+              ? supabase
+                  .from('user_preferences')
+                  .select('notification_time, notification_enabled, categories')
+                  .eq('user_id', userId)
+                  .maybeSingle<PrefRow>()
+              : Promise.resolve({ data: null as PrefRow | null }),
+            AsyncStorage.getItem(NOTIFICATION_TIME_KEY),
+            AsyncStorage.getItem(NOTIFICATION_ENABLED_KEY),
+            AsyncStorage.getItem(USER_CATEGORIES_KEY),
+            getNotificationPermissionStatus(),
+          ]);
 
         if (cancelled) return;
 
         const prefData = prefResult.data;
 
         const timeStr = prefData?.notification_time ?? localTime ?? '09:00';
-        const notificationEnabled =
-          prefData?.notification_enabled ?? (localEnabled === 'true');
+        const notificationEnabled = prefData?.notification_enabled ?? localEnabled === 'true';
 
         let categoryCount = 0;
         if (prefData?.categories) {
@@ -140,7 +150,9 @@ export default function AjustesScreen() {
         console.error('ajustes load error', e);
         if (!cancelled) setReady(true);
       });
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+      };
     }, []),
   );
 
@@ -188,7 +200,12 @@ export default function AjustesScreen() {
           'Activa las notificaciones de Knowbi en los ajustes del sistema para recibir tus píldoras diarias.',
           [
             { text: 'Ahora no', style: 'cancel' },
-            { text: 'Abrir ajustes', onPress: () => { openSystemNotificationSettings(); } },
+            {
+              text: 'Abrir ajustes',
+              onPress: () => {
+                openSystemNotificationSettings();
+              },
+            },
           ],
         );
         return;
@@ -208,10 +225,7 @@ export default function AjustesScreen() {
 
       if (updateErr) {
         console.error('activate notifications update error', updateErr);
-        Alert.alert(
-          'Error',
-          'No pudimos guardar tus preferencias. Inténtalo otra vez.',
-        );
+        Alert.alert('Error', 'No pudimos guardar tus preferencias. Inténtalo otra vez.');
         return;
       }
 
@@ -251,10 +265,7 @@ export default function AjustesScreen() {
         .eq('user_id', userData.user.id);
       if (updateErr) {
         console.error('deactivate notifications update error', updateErr);
-        Alert.alert(
-          'Error',
-          'No pudimos guardar tus preferencias. Inténtalo otra vez.',
-        );
+        Alert.alert('Error', 'No pudimos guardar tus preferencias. Inténtalo otra vez.');
         return;
       }
       await AsyncStorage.setItem(NOTIFICATION_ENABLED_KEY, 'false');
@@ -391,20 +402,23 @@ export default function AjustesScreen() {
                 className="font-body text-body-text-muted"
                 style={{ fontSize: 13, lineHeight: 13 * 1.4, marginTop: 6 }}
               >
-                Knowbi tiene las notificaciones desactivadas en los ajustes del sistema. Actívalas ahí para recibir tus píldoras diarias.
+                Knowbi tiene las notificaciones desactivadas en los ajustes del sistema. Actívalas
+                ahí para recibir tus píldoras diarias.
               </Text>
               <View style={{ marginTop: 14 }}>
                 <Button
                   variant="primary"
                   label="Abrir ajustes"
-                  onPress={() => { openSystemNotificationSettings(); }}
+                  onPress={() => {
+                    openSystemNotificationSettings();
+                  }}
                 />
               </View>
             </>
           ) : (
             <>
               {/* La hora de drop es independiente del aviso: se muestra siempre. */}
-              {(
+              {
                 <>
                   <View style={styles.row}>
                     <Text
@@ -442,7 +456,7 @@ export default function AjustesScreen() {
                   </View>
                   <View style={styles.divider} />
                 </>
-              )}
+              }
               <View style={styles.row}>
                 <Text
                   className="font-body-medium text-ink"
@@ -474,7 +488,9 @@ export default function AjustesScreen() {
           accessibilityLabel="Editar tus categorías"
           accessibilityHint="Abre la lista de categorías para modificar tus preferencias"
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+          >
             <View>
               <Text
                 className="font-body-medium text-ink"
@@ -500,10 +516,7 @@ export default function AjustesScreen() {
           className="bg-white rounded-card"
           style={[styles.card, { marginBottom: 24, alignItems: 'center' }]}
         >
-          <Text
-            className="font-body text-body-text-muted"
-            style={{ fontSize: 13, lineHeight: 13 }}
-          >
+          <Text className="font-body text-body-text-muted" style={{ fontSize: 13, lineHeight: 13 }}>
             {appVersion ? `Versión ${appVersion}` : 'Versión —'}
           </Text>
         </View>

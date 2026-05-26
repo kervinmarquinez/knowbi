@@ -13,11 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../lib/ui/Button';
-import {
-  signUpWithPassword,
-  signInWithGoogle,
-  getEffectiveCategories,
-} from '../../lib/auth';
+import { signUpWithPassword, signInWithGoogle, getEffectiveCategories } from '../../lib/auth';
 
 function isValidEmail(s: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
@@ -225,7 +221,9 @@ export default function SignupScreen() {
           >
             <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 14, color: '#444441' }}>
               ¿Ya tienes cuenta?{' '}
-              <Text style={{ color: '#7F77DD', fontFamily: 'DMSans_500Medium' }}>Inicia sesión</Text>
+              <Text style={{ color: '#7F77DD', fontFamily: 'DMSans_500Medium' }}>
+                Inicia sesión
+              </Text>
             </Text>
           </Pressable>
         </ScrollView>

@@ -35,7 +35,8 @@ function getProjectId(): string | undefined {
   return (
     Constants.expoConfig?.extra?.eas?.projectId ||
     Constants.easConfig?.projectId ||
-    (Constants as { manifest?: { extra?: { eas?: { projectId?: string } } } }).manifest?.extra?.eas?.projectId
+    (Constants as { manifest?: { extra?: { eas?: { projectId?: string } } } }).manifest?.extra?.eas
+      ?.projectId
   );
 }
 
@@ -112,4 +113,3 @@ export async function ensurePushTokenRegistered(userId: string): Promise<void> {
     console.warn('ensurePushTokenRegistered failed', e);
   }
 }
-

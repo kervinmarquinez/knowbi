@@ -9,10 +9,7 @@ export function Badge({ category }: { category: Category }) {
       style={{ backgroundColor: ramp.bg, height: 24 }}
     >
       <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: ramp.text }} />
-      <Text
-        className="font-body-medium"
-        style={{ fontSize: 11, lineHeight: 11, color: ramp.text }}
-      >
+      <Text className="font-body-medium" style={{ fontSize: 11, lineHeight: 11, color: ramp.text }}>
         {category}
       </Text>
     </View>

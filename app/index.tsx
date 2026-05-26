@@ -99,10 +99,7 @@ function Dot({ delay }: { delay: number }) {
 
   return (
     <Animated.View
-      style={[
-        { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#7F77DD' },
-        style,
-      ]}
+      style={[{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#7F77DD' }, style]}
     />
   );
 }

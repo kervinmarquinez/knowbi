@@ -14,12 +14,7 @@
     },
     "context7": {
       "command": "cmd",
-      "args": [
-        "/c",
-        "npx",
-        "-y",
-        "@upstash/context7-mcp"
-      ]
+      "args": ["/c", "npx", "-y", "@upstash/context7-mcp"]
     },
     "sentry": {
       "type": "http",

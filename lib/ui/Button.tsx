@@ -61,11 +61,7 @@ export function Button({
       onPress={onPress}
       disabled={disabled}
       className={`${v.container} rounded-button items-center justify-center w-full`}
-      style={[
-        { height: v.height, opacity: disabled ? 0.4 : 1 },
-        animatedStyle,
-        style,
-      ]}
+      style={[{ height: v.height, opacity: disabled ? 0.4 : 1 }, animatedStyle, style]}
     >
       <Text
         className={`font-body-medium ${v.label}`}

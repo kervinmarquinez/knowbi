@@ -24,10 +24,12 @@ async function gen(outRel, size, scale, bg) {
     .png()
     .toFile(out);
 
-  console.log(`wrote ${outRel} (${size}x${size}, mascot ${inner}px, bg ${bg ? 'white' : 'transparent'})`);
+  console.log(
+    `wrote ${outRel} (${size}x${size}, mascot ${inner}px, bg ${bg ? 'white' : 'transparent'})`,
+  );
 }
 
-await gen('assets/icon.png',          1024, 0.78, { r: 255, g: 255, b: 255, alpha: 1 });
+await gen('assets/icon.png', 1024, 0.78, { r: 255, g: 255, b: 255, alpha: 1 });
 await gen('assets/adaptive-icon.png', 1024, 0.62, null);
-await gen('assets/splash-icon.png',   1024, 0.62, null);
-await gen('assets/favicon.png',         48, 0.78, { r: 255, g: 255, b: 255, alpha: 1 });
+await gen('assets/splash-icon.png', 1024, 0.62, null);
+await gen('assets/favicon.png', 48, 0.78, { r: 255, g: 255, b: 255, alpha: 1 });

@@ -1,10 +1,5 @@
 import { useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  Alert,
-} from 'react-native';
+import { View, Text, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -70,7 +65,12 @@ export default function NotificationOnboarding() {
               'Activa las notificaciones de Knowbi en los ajustes del sistema para recibir tus píldoras diarias.',
               [
                 { text: 'Ahora no', style: 'cancel' },
-                { text: 'Abrir ajustes', onPress: () => { openSystemNotificationSettings(); } },
+                {
+                  text: 'Abrir ajustes',
+                  onPress: () => {
+                    openSystemNotificationSettings();
+                  },
+                },
               ],
             );
           }

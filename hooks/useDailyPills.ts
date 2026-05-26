@@ -44,7 +44,12 @@ async function getUserCategories(): Promise<string[]> {
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.filter((c) => typeof c === 'string') : [];
   } catch {
-    return typeof raw === 'string' && raw.length > 0 ? raw.split(',').map((s) => s.trim()).filter(Boolean) : [];
+    return typeof raw === 'string' && raw.length > 0
+      ? raw
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
   }
 }
 
@@ -55,7 +60,9 @@ export function useDailyPills() {
   const [error, setError] = useState<string | null>(null);
 
   const pillsRef = useRef<DailyPill[]>([]);
-  useEffect(() => { pillsRef.current = pills; }, [pills]);
+  useEffect(() => {
+    pillsRef.current = pills;
+  }, [pills]);
 
   // Invalida un fetch en curso (desmontaje o nuevo fetch) para no hacer setState
   // sobre un polling obsoleto.
@@ -114,7 +121,9 @@ export function useDailyPills() {
     setIsGenerating(true);
     if (!(await wasKickedToday())) {
       void supabase.functions
-        .invoke('generate-pills', { body: { user_id: userId, categories, count: DEFAULT_PILL_COUNT, date } })
+        .invoke('generate-pills', {
+          body: { user_id: userId, categories, count: DEFAULT_PILL_COUNT, date },
+        })
         .catch((e) => console.warn('generate-pills invoke', e));
     }
     if (isStale()) return;
@@ -155,7 +164,9 @@ export function useDailyPills() {
 
   useEffect(() => {
     fetchPills();
-    return () => { fetchIdRef.current++; };
+    return () => {
+      fetchIdRef.current++;
+    };
   }, [fetchPills]);
 
   const markAsRead = useCallback(async (pillId: string) => {
@@ -177,7 +188,7 @@ export function useDailyPills() {
         if (p.id !== pillId) return p;
         previous = p.is_saved;
         return { ...p, is_saved: value };
-      })
+      }),
     );
     const { error: updateErr } = await supabase
       .from('daily_pills')
@@ -197,7 +208,10 @@ export function useDailyPills() {
     const { data, error: queryErr } = await supabase
       .from('daily_pills')
       .select('id, is_saved')
-      .in('id', current.map((p) => p.id));
+      .in(
+        'id',
+        current.map((p) => p.id),
+      );
     if (queryErr || !data) return;
     const savedById = new Map(data.map((r) => [r.id as string, r.is_saved as boolean]));
     setPills((prev) =>
@@ -207,5 +221,16 @@ export function useDailyPills() {
 
   const allRead = pills.length > 0 && pills.every((p) => p.is_read);
 
-  return { pills, isLoading, isGenerating, error, markAsRead, saveToLibrary, setSaved, syncSavedStates, allRead, refetch: fetchPills };
+  return {
+    pills,
+    isLoading,
+    isGenerating,
+    error,
+    markAsRead,
+    saveToLibrary,
+    setSaved,
+    syncSavedStates,
+    allRead,
+    refetch: fetchPills,
+  };
 }

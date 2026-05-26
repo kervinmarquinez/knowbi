@@ -52,7 +52,9 @@ export default function PillDetailScreen() {
       setPill(data as Pill);
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   const toggleSaved = useCallback(async () => {

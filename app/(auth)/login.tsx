@@ -181,10 +181,7 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
-          <Pressable
-            onPress={onForgotPassword}
-            style={{ alignSelf: 'flex-end', marginTop: 10 }}
-          >
+          <Pressable onPress={onForgotPassword} style={{ alignSelf: 'flex-end', marginTop: 10 }}>
             <Text style={{ fontFamily: 'DMSans_500Medium', fontSize: 13, color: '#7F77DD' }}>
               ¿Olvidaste tu contraseña?
             </Text>

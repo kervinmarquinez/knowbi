@@ -60,7 +60,9 @@ export default function GuardadasScreen() {
       }
 
       fetchSaved();
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+      };
     }, []),
   );
 
@@ -96,9 +98,7 @@ export default function GuardadasScreen() {
   const uniqueCategories = Array.from(new Set(pills.map((p) => p.category)));
 
   const visiblePills =
-    selectedCategory === ALL_FILTER
-      ? pills
-      : pills.filter((p) => p.category === selectedCategory);
+    selectedCategory === ALL_FILTER ? pills : pills.filter((p) => p.category === selectedCategory);
 
   const showChips = pills.length > 0;
   const isEmpty = visiblePills.length === 0;
@@ -166,7 +166,12 @@ export default function GuardadasScreen() {
 
         {isEmpty ? (
           <View className="items-center" style={{ paddingHorizontal: 20, paddingTop: 60 }}>
-            <Ionicons name="bookmark-outline" size={48} color="#C5C2BA" style={{ marginBottom: 20 }} />
+            <Ionicons
+              name="bookmark-outline"
+              size={48}
+              color="#C5C2BA"
+              style={{ marginBottom: 20 }}
+            />
             <Text
               className="font-display-semibold text-ink"
               style={{ fontSize: 17, lineHeight: 17 * 1.35, marginBottom: 8 }}
@@ -202,11 +207,7 @@ export default function GuardadasScreen() {
         ) : (
           <View style={{ paddingHorizontal: 20 }}>
             {visiblePills.map((p) => (
-              <Link
-                key={p.id}
-                href={{ pathname: '/pill/[id]', params: { id: p.id } }}
-                asChild
-              >
+              <Link key={p.id} href={{ pathname: '/pill/[id]', params: { id: p.id } }} asChild>
                 <Link.Trigger>
                   <Pressable
                     accessibilityRole="button"
@@ -227,7 +228,12 @@ export default function GuardadasScreen() {
                       </View>
                       <Text
                         className="font-display-bold text-ink"
-                        style={{ fontSize: 16, lineHeight: 16 * 1.3, marginTop: 8, marginBottom: 6 }}
+                        style={{
+                          fontSize: 16,
+                          lineHeight: 16 * 1.3,
+                          marginTop: 8,
+                          marginBottom: 6,
+                        }}
                       >
                         {p.title}
                       </Text>

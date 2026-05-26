@@ -1,17 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import {
-  NativeTabs,
-  Icon,
-  Label,
-  VectorIcon,
-} from 'expo-router/unstable-native-tabs';
+import { NativeTabs, Icon, Label, VectorIcon } from 'expo-router/unstable-native-tabs';
 
 export default function TabsLayout() {
   return (
-    <NativeTabs
-      tintColor="#7F77DD"
-      labelStyle={{ fontFamily: 'DMSans_500Medium', fontSize: 10 }}
-    >
+    <NativeTabs tintColor="#7F77DD" labelStyle={{ fontFamily: 'DMSans_500Medium', fontSize: 10 }}>
       <NativeTabs.Trigger name="index">
         <Icon
           sf={{ default: 'house', selected: 'house.fill' }}

@@ -7,7 +7,8 @@ let initialized = false;
 export function initSentry() {
   if (initialized) return;
   if (!DSN) {
-    if (__DEV__) console.warn('Sentry DSN missing (EXPO_PUBLIC_SENTRY_DSN) — error tracking disabled.');
+    if (__DEV__)
+      console.warn('Sentry DSN missing (EXPO_PUBLIC_SENTRY_DSN) — error tracking disabled.');
     return;
   }
   Sentry.init({

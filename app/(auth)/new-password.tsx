@@ -28,8 +28,7 @@ export default function NewPasswordScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const passwordsMatch = password === passwordConfirm;
-  const canSubmit =
-    isStrongPassword(password) && passwordsMatch && !submitting;
+  const canSubmit = isStrongPassword(password) && passwordsMatch && !submitting;
 
   const onSubmit = useCallback(async () => {
     if (!canSubmit) return;
@@ -47,16 +46,12 @@ export default function NewPasswordScreen() {
       // ignore signOut errors; we still want to send user to login
     }
     setSubmitting(false);
-    Alert.alert(
-      'Contraseña actualizada',
-      'Inicia sesión con tu nueva contraseña.',
-      [
-        {
-          text: 'Iniciar sesión',
-          onPress: () => router.replace('/(auth)/login'),
-        },
-      ],
-    );
+    Alert.alert('Contraseña actualizada', 'Inicia sesión con tu nueva contraseña.', [
+      {
+        text: 'Iniciar sesión',
+        onPress: () => router.replace('/(auth)/login'),
+      },
+    ]);
   }, [canSubmit, password, router]);
 
   return (

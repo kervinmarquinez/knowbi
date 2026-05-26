@@ -12,10 +12,7 @@ import {
   Nunito_700Bold,
   Nunito_800ExtraBold,
 } from '@expo-google-fonts/nunito';
-import {
-  DMSans_400Regular,
-  DMSans_500Medium,
-} from '@expo-google-fonts/dm-sans';
+import { DMSans_400Regular, DMSans_500Medium } from '@expo-google-fonts/dm-sans';
 import { configureNotificationHandler, ensureAndroidChannel } from '../lib/notifications';
 import { initSentry, setSentryUser, wrap } from '../lib/sentry';
 import { supabase } from '../lib/supabase';

@@ -1,13 +1,7 @@
 import { Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-export function SaveButton({
-  saved,
-  onPress,
-}: {
-  saved: boolean;
-  onPress?: () => void;
-}) {
+export function SaveButton({ saved, onPress }: { saved: boolean; onPress?: () => void }) {
   return (
     <Pressable
       onPress={onPress}

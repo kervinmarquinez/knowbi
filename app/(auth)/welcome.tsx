@@ -244,6 +244,7 @@ export default function AuthWelcome() {
   const [index, setIndex] = useState(0);
   const [exploring, setExploring] = useState(false);
 
+  // eslint-disable-next-line react-hooks/refs -- FlatList exige una referencia estable; useRef(fn).current la garantiza
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     if (viewableItems[0]?.index != null) setIndex(viewableItems[0].index);
   }).current;

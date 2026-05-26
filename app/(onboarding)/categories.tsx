@@ -41,10 +41,7 @@ async function savePreferences(picked: string[]) {
   if (!userId) return;
   await supabase
     .from('user_preferences')
-    .upsert(
-      { user_id: userId, categories: picked, plan: 'free' },
-      { onConflict: 'user_id' },
-    );
+    .upsert({ user_id: userId, categories: picked, plan: 'free' }, { onConflict: 'user_id' });
 }
 
 export default function CategoriesScreen() {

@@ -23,9 +23,7 @@ export function Chip({
       style={{ height: 36 }}
     >
       {selected && (
-        <View
-          style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#3C3489' }}
-        />
+        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#3C3489' }} />
       )}
       <Text
         className={selected ? 'font-body-medium text-primary-text' : 'font-body-medium text-ink'}

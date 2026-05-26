@@ -12,12 +12,7 @@ export function CategoryGrid({
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
       {CATEGORIES.map((c) => (
-        <Chip
-          key={c}
-          label={c}
-          selected={picked.includes(c)}
-          onPress={() => onToggle(c)}
-        />
+        <Chip key={c} label={c} selected={picked.includes(c)} onPress={() => onToggle(c)} />
       ))}
     </View>
   );

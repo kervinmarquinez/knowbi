@@ -155,7 +155,9 @@ export default function PerfilScreen() {
       }
 
       load().catch((e) => console.error('perfil load error', e));
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+      };
     }, []),
   );
 
@@ -260,7 +262,13 @@ export default function PerfilScreen() {
                 {totalRead}
               </Text>
             </View>
-            <View style={{ width: StyleSheet.hairlineWidth, backgroundColor: '#E0DED8', marginHorizontal: 16 }} />
+            <View
+              style={{
+                width: StyleSheet.hairlineWidth,
+                backgroundColor: '#E0DED8',
+                marginHorizontal: 16,
+              }}
+            />
             <View style={{ flex: 1 }}>
               <Text
                 className="font-body text-body-text-muted"
@@ -288,7 +296,14 @@ export default function PerfilScreen() {
             </Text>
             <View style={{ gap: 10 }}>
               {topCategories.map(({ category, count }) => (
-                <View key={category} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View
+                  key={category}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
                   <Badge category={category} />
                   <Text
                     className="font-body text-body-text-muted"
@@ -337,10 +352,7 @@ function Legend({ color, label }: { color: string; label: string }) {
   return (
     <View className="flex-row items-center" style={{ gap: 6 }}>
       <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: color }} />
-      <Text
-        className="font-body text-body-text-muted"
-        style={{ fontSize: 11, lineHeight: 13 }}
-      >
+      <Text className="font-body text-body-text-muted" style={{ fontSize: 11, lineHeight: 13 }}>
         {label}
       </Text>
     </View>

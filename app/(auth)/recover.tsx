@@ -28,8 +28,7 @@ export default function RecoverScreen() {
   const normalizedEmail = email.trim().toLowerCase();
   const normalizedConfirm = emailConfirm.trim().toLowerCase();
   const emailsMatch = normalizedEmail === normalizedConfirm;
-  const canSubmit =
-    isValidEmail(email) && isValidEmail(emailConfirm) && emailsMatch && !submitting;
+  const canSubmit = isValidEmail(email) && isValidEmail(emailConfirm) && emailsMatch && !submitting;
 
   const onSubmit = useCallback(async () => {
     if (!canSubmit) return;

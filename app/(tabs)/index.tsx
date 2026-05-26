@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, Dimensions, Alert } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Text,
+  ActivityIndicator,
+  TouchableOpacity,
+  Dimensions,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -97,7 +105,12 @@ function StackCard({
       style={[StyleSheet.absoluteFill, { zIndex }, animatedStyle]}
     >
       <PillCard
-        pill={{ category: pill.category as Category, title: pill.title, body: pill.body, date: pill.date }}
+        pill={{
+          category: pill.category as Category,
+          title: pill.title,
+          body: pill.body,
+          date: pill.date,
+        }}
         index={absIndex}
         total={total}
         saved={pill.is_saved}
@@ -109,7 +122,17 @@ function StackCard({
 
 export default function HoyScreen() {
   const router = useRouter();
-  const { pills, isLoading, isGenerating, error, markAsRead, setSaved, syncSavedStates, allRead, refetch } = useDailyPills();
+  const {
+    pills,
+    isLoading,
+    isGenerating,
+    error,
+    markAsRead,
+    setSaved,
+    syncSavedStates,
+    allRead,
+    refetch,
+  } = useDailyPills();
   const [idx, setIdx] = useState(0);
   const [streak, setStreak] = useState(0);
   const [isAnon, setIsAnon] = useState(false);
@@ -118,16 +141,27 @@ export default function HoyScreen() {
   const androidTabBarPad = useAndroidTabBarPad();
 
   // Espejo de idx en el hilo de UI para posicionar las cards sin esperar al render.
-  useEffect(() => { idxSV.value = idx; }, [idx]);
+  useEffect(() => {
+    idxSV.value = idx;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- idxSV es shared value (identidad estable)
+  }, [idx]);
 
   const allReadRef = useRef(false);
-  useEffect(() => { allReadRef.current = allRead; }, [allRead]);
+  useEffect(() => {
+    allReadRef.current = allRead;
+  }, [allRead]);
   const isLoadingRef = useRef(isLoading);
-  useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
+  useEffect(() => {
+    isLoadingRef.current = isLoading;
+  }, [isLoading]);
   const errorRef = useRef(error);
-  useEffect(() => { errorRef.current = error; }, [error]);
+  useEffect(() => {
+    errorRef.current = error;
+  }, [error]);
   const pillsRef = useRef(pills);
-  useEffect(() => { pillsRef.current = pills; }, [pills]);
+  useEffect(() => {
+    pillsRef.current = pills;
+  }, [pills]);
 
   // Si el set del día ya está leído, aterrizamos en Completado por defecto (opción A), salvo
   // que el usuario haya pulsado "Volver a las píldoras de hoy" para releer este set (flag de
@@ -172,7 +206,10 @@ export default function HoyScreen() {
       }
 
       loadStreak();
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- translateX es shared value (identidad estable)
     }, [syncSavedStates, routeOrReset]),
   );
 
@@ -316,7 +353,10 @@ export default function HoyScreen() {
     return (
       <SafeAreaView className="flex-1 bg-surface items-center justify-center" edges={['top']}>
         <ActivityIndicator size="large" color="#7F77DD" />
-        <Text className="font-body text-body-text" style={{ fontSize: 15, textAlign: 'center', marginHorizontal: 32, marginTop: 20 }}>
+        <Text
+          className="font-body text-body-text"
+          style={{ fontSize: 15, textAlign: 'center', marginHorizontal: 32, marginTop: 20 }}
+        >
           Preparando tus 5 píldoras…
         </Text>
       </SafeAreaView>
@@ -334,7 +374,10 @@ export default function HoyScreen() {
   if (error) {
     return (
       <SafeAreaView className="flex-1 bg-surface items-center justify-center" edges={['top']}>
-        <Text className="font-body text-body-text" style={{ fontSize: 15, textAlign: 'center', marginHorizontal: 32 }}>
+        <Text
+          className="font-body text-body-text"
+          style={{ fontSize: 15, textAlign: 'center', marginHorizontal: 32 }}
+        >
           Algo falló. Tira hacia abajo para reintentar.
         </Text>
         <TouchableOpacity onPress={refetch} style={{ marginTop: 20 }}>

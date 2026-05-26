@@ -20,9 +20,7 @@ export default function AuthCallback() {
           if (cancelled) return;
           const cats = await getEffectiveCategories();
           if (cancelled) return;
-          router.replace(
-            cats.length >= 3 ? '/(tabs)' : '/(onboarding)/categories?from=onboarding',
-          );
+          router.replace(cats.length >= 3 ? '/(tabs)' : '/(onboarding)/categories?from=onboarding');
           return;
         }
         await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));

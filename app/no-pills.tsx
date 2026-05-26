@@ -69,7 +69,10 @@ export default function NoPillsYetScreen() {
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- router (expo-router) tiene identidad estable; efecto de montaje
   }, []);
 
   if (!ready) return null;
