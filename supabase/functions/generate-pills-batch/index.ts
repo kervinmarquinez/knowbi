@@ -145,7 +145,7 @@ Deno.serve(async (_req) => {
   const groups = new Map<string, UserPref[]>();
   for (const u of list) {
     const cats = Array.isArray(u.categories) ? u.categories : [];
-    const key = JSON.stringify([...cats].sort());
+    const key = JSON.stringify(cats.toSorted());
     const existing = groups.get(key);
     if (existing) existing.push(u);
     else groups.set(key, [u]);

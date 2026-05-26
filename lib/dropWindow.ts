@@ -7,23 +7,26 @@
 
 const MADRID_TZ = 'Europe/Madrid';
 
+// Formatters Intl reutilizados: construirlos es caro (cargan datos de locale/timezone),
+// así que se crean una sola vez a nivel de módulo en lugar de en cada llamada.
+const MADRID_DATE_FMT = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: MADRID_TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+const MADRID_TIME_FMT = new Intl.DateTimeFormat('en-GB', {
+  timeZone: MADRID_TZ,
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
 // Partes del "ahora" en hora de Madrid, independientes de la zona del dispositivo.
 export function madridNowParts(): { dateISO: string; hour: number; minute: number } {
   const now = new Date();
-  // YYYY-MM-DD en Madrid.
-  const dateISO = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: MADRID_TZ,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(now);
-  // HH:MM 24h en Madrid.
-  const hhmm = new Intl.DateTimeFormat('en-GB', {
-    timeZone: MADRID_TZ,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(now);
+  const dateISO = MADRID_DATE_FMT.format(now); // YYYY-MM-DD en Madrid
+  const hhmm = MADRID_TIME_FMT.format(now); // HH:MM 24h en Madrid
   const [hour, minute] = hhmm.split(':').map(Number);
   return { dateISO, hour, minute };
 }

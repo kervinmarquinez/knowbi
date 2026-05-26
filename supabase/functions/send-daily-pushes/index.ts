@@ -44,26 +44,28 @@ const SERVICE_ROLE_JWT = requireEnv("SERVICE_ROLE_JWT");
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// Formatters Intl reutilizados (construirlos es caro: cargan datos de locale/timezone).
+const MADRID_TIME_FMT = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/Madrid",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+const MADRID_DATE_FMT = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: "Europe/Madrid",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 // Madrid HH:MM con formato 24h, 2 dígitos.
 function nowMadridHHMM(): string {
-  const fmt = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Madrid",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  return fmt.format(new Date());
+  return MADRID_TIME_FMT.format(new Date());
 }
 
 // Madrid YYYY-MM-DD.
 function todayMadridISO(): string {
-  const fmt = new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "Europe/Madrid",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  return fmt.format(new Date());
+  return MADRID_DATE_FMT.format(new Date());
 }
 
 function pickRandom<T>(arr: T[]): T | null {

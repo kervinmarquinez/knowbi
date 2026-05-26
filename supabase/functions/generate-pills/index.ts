@@ -115,7 +115,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 function computeCategoriesHash(categories: string[]): string {
-  const sorted = [...categories].sort();
+  const sorted = categories.toSorted();
   const joined = sorted.join(",");
   return encodeBase64(new TextEncoder().encode(joined));
 }
@@ -144,14 +144,17 @@ function decodeJwtClaims(authHeader: string | null): { sub?: string; role?: stri
   }
 }
 
+// Formatter Intl reutilizado (construirlo es caro: carga datos de locale/timezone).
+const MADRID_DATE_FMT = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: "Europe/Madrid",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 // YYYY-MM-DD del día actual en hora de Madrid (toda la app asume Europe/Madrid).
 function madridTodayISO(): string {
-  return new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "Europe/Madrid",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+  return MADRID_DATE_FMT.format(new Date());
 }
 
 // Suma/resta días de calendario a un 'YYYY-MM-DD' (aritmética en UTC puro sobre la fecha).
