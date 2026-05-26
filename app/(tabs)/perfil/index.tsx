@@ -207,7 +207,7 @@ export default function PerfilScreen() {
         <View className="bg-white rounded-card" style={[styles.card, { marginBottom: 16 }]}>
           <Text
             className="font-body text-body-text-muted"
-            style={{ fontSize: 11, lineHeight: 13, marginBottom: 8 }}
+            style={{ fontSize: 12, lineHeight: 13, marginBottom: 8 }}
           >
             Racha actual
           </Text>
@@ -228,7 +228,7 @@ export default function PerfilScreen() {
         <View className="bg-white rounded-card" style={[styles.card, { marginBottom: 16 }]}>
           <Text
             className="font-body text-body-text-muted"
-            style={{ fontSize: 11, lineHeight: 13, marginBottom: 8 }}
+            style={{ fontSize: 12, lineHeight: 13, marginBottom: 8 }}
           >
             Mejor racha
           </Text>
@@ -251,7 +251,7 @@ export default function PerfilScreen() {
             <View style={{ flex: 1 }}>
               <Text
                 className="font-body text-body-text-muted"
-                style={{ fontSize: 11, lineHeight: 13, marginBottom: 6 }}
+                style={{ fontSize: 12, lineHeight: 13, marginBottom: 6 }}
               >
                 Píldoras leídas
               </Text>
@@ -272,7 +272,7 @@ export default function PerfilScreen() {
             <View style={{ flex: 1 }}>
               <Text
                 className="font-body text-body-text-muted"
-                style={{ fontSize: 11, lineHeight: 13, marginBottom: 6 }}
+                style={{ fontSize: 12, lineHeight: 13, marginBottom: 6 }}
               >
                 Píldoras guardadas
               </Text>
@@ -352,7 +352,7 @@ function Legend({ color, label }: { color: string; label: string }) {
   return (
     <View className="flex-row items-center" style={{ gap: 6 }}>
       <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: color }} />
-      <Text className="font-body text-body-text-muted" style={{ fontSize: 11, lineHeight: 13 }}>
+      <Text className="font-body text-body-text-muted" style={{ fontSize: 12, lineHeight: 13 }}>
         {label}
       </Text>
     </View>

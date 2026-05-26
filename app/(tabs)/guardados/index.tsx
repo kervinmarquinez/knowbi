@@ -239,7 +239,7 @@ export default function GuardadasScreen() {
                       </Text>
                       <Text
                         className="font-body text-body-text-muted"
-                        style={{ fontSize: 11, lineHeight: 13 }}
+                        style={{ fontSize: 12, lineHeight: 13 }}
                       >
                         {formatPillDate(p.date)}
                       </Text>

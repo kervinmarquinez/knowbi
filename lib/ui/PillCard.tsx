@@ -43,7 +43,7 @@ export function PillCard({
       </Text>
       <View style={styles.divider} />
       <View className="flex-row items-center justify-between" style={{ marginTop: 14 }}>
-        <Text className="font-body text-body-text-muted" style={{ fontSize: 11, lineHeight: 13 }}>
+        <Text className="font-body text-body-text-muted" style={{ fontSize: 12, lineHeight: 13 }}>
           {index + 1} de {total}
           {dateLabel ? ` · ${dateLabel}` : ''}
         </Text>

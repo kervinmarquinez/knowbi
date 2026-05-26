@@ -366,7 +366,7 @@ export default function AjustesScreen() {
             <>
               <Text
                 className="font-body text-body-text-muted"
-                style={{ fontSize: 11, lineHeight: 13 }}
+                style={{ fontSize: 12, lineHeight: 13 }}
               >
                 Bienvenido
               </Text>
