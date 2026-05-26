@@ -102,6 +102,8 @@ export default function LoginScreen() {
         <View style={{ paddingHorizontal: 12, paddingTop: 4 }}>
           <Pressable
             onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Volver"
             hitSlop={12}
             style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
           >

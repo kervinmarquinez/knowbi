@@ -439,13 +439,20 @@ export default function HoyScreen() {
         <TouchableOpacity
           onPress={tapBack}
           disabled={!canGoBack}
+          accessibilityRole="button"
+          accessibilityLabel="Píldora anterior"
           hitSlop={16}
           style={{ opacity: canGoBack ? 1 : 0.3 }}
         >
           <Ionicons name="arrow-back" size={16} color="#888885" />
         </TouchableOpacity>
         <Text style={styles.hintText}>Desliza</Text>
-        <TouchableOpacity onPress={tapForward} hitSlop={16}>
+        <TouchableOpacity
+          onPress={tapForward}
+          accessibilityRole="button"
+          accessibilityLabel="Píldora siguiente"
+          hitSlop={16}
+        >
           <Ionicons name="arrow-forward" size={16} color="#888885" />
         </TouchableOpacity>
       </View>

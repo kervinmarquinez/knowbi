@@ -74,7 +74,13 @@ export default function PillDetailScreen() {
   return (
     <SafeAreaView className="flex-1 bg-surface" edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+        <Pressable
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+          hitSlop={12}
+          style={styles.backBtn}
+        >
           <Ionicons name="chevron-back" size={24} color="#1A1A2E" />
         </Pressable>
       </View>
