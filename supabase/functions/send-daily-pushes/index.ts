@@ -1,5 +1,6 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { classifyReceipts, type ExpoReceipt, type ReceiptRow } from "./receipts.ts";
 
 type PendingUser = {
   user_id: string;
@@ -20,6 +21,11 @@ type ExpoMessage = {
   data?: Record<string, unknown>;
 };
 
+// Ticket que Expo devuelve por cada mensaje aceptado en su cola (≠ entregado).
+type ExpoTicket =
+  | { status: "ok"; id: string }
+  | { status: "error"; message?: string; details?: { error?: string } };
+
 type Summary = {
   matched: number;
   sent: number;
@@ -28,7 +34,14 @@ type Summary = {
 
 const EXPO_BATCH_SIZE = 100;
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
+const EXPO_RECEIPTS_URL = "https://exp.host/--/api/v2/push/getReceipts";
 const DAILY_PILL_COUNT = 5;
+
+// 2ª pasada de receipts: Expo no los tiene al instante; esperamos 15 min antes de
+// consultarlos y los retiene ~24h (pasado eso, nos rendimos con esa fila).
+const RECEIPT_DELAY_MS = 15 * 60 * 1000;
+const RECEIPT_GIVEUP_MS = 24 * 60 * 60 * 1000;
+const RECEIPT_FETCH_LIMIT = 1000; // tope de IDs por llamada a getReceipts
 
 function requireEnv(name: string): string {
   const value = Deno.env.get(name);
@@ -130,8 +143,10 @@ async function buildMessageForUser(userId: string, categories: string[], date: s
   };
 }
 
-async function sendBatchToExpo(messages: ExpoMessage[]): Promise<{ sent: number; failed: number }> {
-  if (messages.length === 0) return { sent: 0, failed: 0 };
+// Devuelve los tickets de Expo en el MISMO orden que los mensajes (garantía de Expo),
+// o null si la llamada HTTP falló (en ese caso el slice entero cuenta como fallido).
+async function sendBatchToExpo(messages: ExpoMessage[]): Promise<ExpoTicket[] | null> {
+  if (messages.length === 0) return [];
 
   const res = await fetch(EXPO_PUSH_URL, {
     method: "POST",
@@ -145,20 +160,88 @@ async function sendBatchToExpo(messages: ExpoMessage[]): Promise<{ sent: number;
 
   if (!res.ok) {
     console.error("Expo push API error", res.status, await res.text());
-    return { sent: 0, failed: messages.length };
+    return null;
   }
 
   const data = await res.json();
-  const tickets = (data?.data ?? []) as { status: "ok" | "error" }[];
-  let sent = 0, failed = 0;
-  for (const t of tickets) {
-    if (t.status === "ok") sent++;
-    else failed++;
+  return (data?.data ?? []) as ExpoTicket[];
+}
+
+// 2ª pasada: lee los receipts de los push ya aceptados (>15 min) y limpia tokens
+// muertos (DeviceNotRegistered → expo_push_token = NULL, la app re-registra al abrir).
+// Best-effort: cualquier fallo se loguea y NO rompe el envío. Idempotente, así que
+// solapes entre invocaciones del cron de cada minuto son inocuos.
+async function processReceipts(): Promise<{ checked: number; cleared: number }> {
+  const cutoff = new Date(Date.now() - RECEIPT_DELAY_MS).toISOString();
+  const { data: rows, error } = await supabase
+    .from("push_receipts")
+    .select("ticket_id, user_id, expo_push_token, created_at")
+    .lt("created_at", cutoff)
+    .order("created_at", { ascending: true })
+    .limit(RECEIPT_FETCH_LIMIT);
+
+  if (error) {
+    console.error("push_receipts query failed", error);
+    return { checked: 0, cleared: 0 };
   }
-  return { sent, failed };
+  if (!rows || rows.length === 0) return { checked: 0, cleared: 0 };
+
+  let receipts: Record<string, ExpoReceipt> = {};
+  try {
+    const res = await fetch(EXPO_RECEIPTS_URL, {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip, deflate",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ids: rows.map((r) => r.ticket_id) }),
+    });
+    if (!res.ok) {
+      console.error("Expo getReceipts API error", res.status, await res.text());
+      return { checked: 0, cleared: 0 };
+    }
+    const data = await res.json();
+    receipts = (data?.data ?? {}) as Record<string, ExpoReceipt>;
+  } catch (e) {
+    console.error("Expo getReceipts threw", e);
+    return { checked: 0, cleared: 0 };
+  }
+
+  const { deadTokens, toDelete, otherErrors } = classifyReceipts(
+    rows as ReceiptRow[],
+    receipts,
+    Date.now(),
+    RECEIPT_GIVEUP_MS,
+  );
+
+  for (const e of otherErrors) {
+    console.error("push receipt error", e.ticket_id, e.message);
+  }
+
+  // Anular tokens muertos. Condicional al token: si el usuario re-registró otro en la
+  // ventana de 15 min, no lo pisamos.
+  for (const d of deadTokens) {
+    const { error: updErr } = await supabase
+      .from("user_preferences")
+      .update({ expo_push_token: null })
+      .eq("user_id", d.user_id)
+      .eq("expo_push_token", d.token);
+    if (updErr) console.error("failed to null dead token", d.user_id, updErr);
+  }
+
+  if (toDelete.length > 0) {
+    const { error: delErr } = await supabase.from("push_receipts").delete().in("ticket_id", toDelete);
+    if (delErr) console.error("failed to delete processed receipts", delErr);
+  }
+
+  return { checked: rows.length, cleared: deadTokens.length };
 }
 
 Deno.serve(async (_req) => {
+  // 2ª pasada de receipts: corre cada minuto, independiente del envío de hoy.
+  const receipts = await processReceipts();
+
   const hhmm = nowMadridHHMM();
   const date = todayMadridISO();
 
@@ -184,7 +267,7 @@ Deno.serve(async (_req) => {
   const summary: Summary = { matched: pending.length, sent: 0, failed: 0 };
 
   if (pending.length === 0) {
-    return new Response(JSON.stringify({ ...summary, hhmm, date }), {
+    return new Response(JSON.stringify({ ...summary, receipts, hhmm, date }), {
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -213,12 +296,48 @@ Deno.serve(async (_req) => {
     }),
   );
 
-  // Expo limita batches a 100 mensajes.
+  // Expo limita batches a 100 mensajes. Guardamos los ticket IDs aceptados para leer
+  // sus receipts ~15 min después (processReceipts).
+  const receiptInserts: { ticket_id: string; user_id: string; expo_push_token: string }[] = [];
+  const immediateDead: { user_id: string; token: string }[] = [];
   for (let i = 0; i < messages.length; i += EXPO_BATCH_SIZE) {
     const slice = messages.slice(i, i + EXPO_BATCH_SIZE);
-    const { sent, failed } = await sendBatchToExpo(slice);
-    summary.sent += sent;
-    summary.failed += failed;
+    const tickets = await sendBatchToExpo(slice);
+    if (tickets === null) {
+      summary.failed += slice.length;
+      continue;
+    }
+    // Expo devuelve los tickets en el mismo orden que los mensajes del slice.
+    for (let j = 0; j < tickets.length; j++) {
+      const t = tickets[j];
+      const user_id = sentUserIds[i + j];
+      const token = slice[j].to;
+      if (t.status === "ok") {
+        summary.sent += 1;
+        receiptInserts.push({ ticket_id: t.id, user_id, expo_push_token: token });
+      } else {
+        summary.failed += 1;
+        // A veces Expo ya marca el token como muerto en el propio ticket.
+        if (t.details?.error === "DeviceNotRegistered") immediateDead.push({ user_id, token });
+        else console.error("Expo ticket error", t.message, t.details);
+      }
+    }
+  }
+
+  // Guardar los ticket IDs para la 2ª pasada (best-effort; created_at lo pone el DEFAULT).
+  if (receiptInserts.length > 0) {
+    const { error: insErr } = await supabase.from("push_receipts").insert(receiptInserts);
+    if (insErr) console.error("push_receipts insert failed", insErr);
+  }
+
+  // Tokens muertos detectados ya en el ticket (sin esperar al receipt).
+  for (const d of immediateDead) {
+    const { error: updErr } = await supabase
+      .from("user_preferences")
+      .update({ expo_push_token: null })
+      .eq("user_id", d.user_id)
+      .eq("expo_push_token", d.token);
+    if (updErr) console.error("failed to null dead token (immediate)", d.user_id, updErr);
   }
 
   // Marca el día de envío para no reenviar hoy a estos usuarios (dedup diario).
@@ -230,8 +349,8 @@ Deno.serve(async (_req) => {
     if (markErr) console.error("failed to mark last_push_date", markErr);
   }
 
-  console.log("sender complete", summary);
-  return new Response(JSON.stringify({ ...summary, hhmm, date }), {
+  console.log("sender complete", summary, "receipts", receipts);
+  return new Response(JSON.stringify({ ...summary, receipts, hhmm, date }), {
     headers: { "Content-Type": "application/json" },
   });
 });
