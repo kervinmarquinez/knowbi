@@ -1,3 +1,6 @@
+import type { ComponentProps } from 'react';
+import type { Ionicons } from '@expo/vector-icons';
+
 export type Category =
   | 'Historia'
   | 'Geografía'
@@ -50,6 +53,27 @@ export const CATEGORY_RAMPS: Record<Category, { bg: string; text: string }> = {
   Tecnología: { bg: '#E6F1FB', text: '#0C447C' },
   Música: { bg: '#E6F1FB', text: '#0C447C' },
   Deporte: { bg: '#E6F1FB', text: '#0C447C' },
-  Gastronomía: { bg: '#FAEEDA', text: '#633806' },
-  Economía: { bg: '#FAEEDA', text: '#633806' },
+  Gastronomía: { bg: '#FBEAF1', text: '#8A2D5C' },
+  Economía: { bg: '#ECF0E4', text: '#4C5A2E' },
+};
+
+type IoniconName = ComponentProps<typeof Ionicons>['name'];
+
+export const CATEGORY_ICONS: Record<Category, IoniconName> = {
+  Ciencia: 'flask',
+  Historia: 'hourglass',
+  Astronomía: 'planet',
+  Arte: 'color-palette',
+  Tecnología: 'hardware-chip',
+  Música: 'musical-notes',
+  Gastronomía: 'restaurant',
+  Naturaleza: 'leaf',
+  Cine: 'film',
+  Psicología: 'happy',
+  Literatura: 'book',
+  Geografía: 'earth',
+  Medicina: 'medkit',
+  Deporte: 'fitness',
+  Economía: 'trending-up',
+  Arquitectura: 'business',
 };
