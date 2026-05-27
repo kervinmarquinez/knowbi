@@ -8,6 +8,7 @@ import { Button } from '../../lib/ui/Button';
 import { supabase } from '../../lib/supabase';
 import { formatPillDate } from '../../lib/formatPillDate';
 import type { Category } from '../../lib/ui/categories';
+import { CATEGORY_RAMPS } from '../../lib/ui/categories';
 
 type Pill = {
   id: string;
@@ -72,7 +73,11 @@ export default function PillDetailScreen() {
   }, [pill]);
 
   return (
-    <SafeAreaView className="flex-1 bg-surface" edges={['top', 'bottom']}>
+    <SafeAreaView
+      className="flex-1"
+      edges={['top', 'bottom']}
+      style={{ backgroundColor: pill ? CATEGORY_RAMPS[pill.category].bg : '#F7F7FC' }}
+    >
       <View style={styles.header}>
         <Pressable
           onPress={() => router.back()}
@@ -102,8 +107,14 @@ export default function PillDetailScreen() {
           >
             <Badge category={pill.category} />
             <Text
-              className="font-display-bold text-ink"
-              style={{ fontSize: 26, lineHeight: 26 * 1.25, marginTop: 16, letterSpacing: -0.26 }}
+              className="font-display-bold"
+              style={{
+                fontSize: 26,
+                lineHeight: 26 * 1.25,
+                marginTop: 16,
+                letterSpacing: -0.26,
+                color: CATEGORY_RAMPS[pill.category].text,
+              }}
             >
               {pill.title}
             </Text>
