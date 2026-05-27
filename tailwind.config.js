@@ -12,7 +12,7 @@ module.exports = {
         ink: '#1A1A2E',
         surface: '#F7F7FC',
         'body-text': '#444441',
-        'body-text-muted': '#888885',
+        'body-text-muted': '#6A6A66',
         'gray-border': '#E0DED8',
         white: '#FFFFFF',
         amber: '#EF9F27',
