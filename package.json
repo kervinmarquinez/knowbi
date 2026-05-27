@@ -10,7 +10,12 @@
     "lint": "expo lint",
     "lint:fix": "expo lint -- --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test": "jest"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "modulePathIgnorePatterns": ["<rootDir>/.claude/"]
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",
@@ -46,11 +51,14 @@
     "tailwindcss": "^3.4.19"
   },
   "devDependencies": {
+    "@types/jest": "29.5.14",
     "@types/react": "~19.1.0",
     "babel-preset-expo": "~54.0.10",
     "eslint": "^9.39.4",
     "eslint-config-expo": "^56.0.4",
     "eslint-config-prettier": "^10.1.8",
+    "jest": "~29.7.0",
+    "jest-expo": "~54.0.17",
     "prettier": "^3.8.3",
     "sharp": "^0.34.5",
     "typescript": "~5.9.2"
