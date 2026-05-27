@@ -32,6 +32,8 @@ export function PillCard({
         className="font-display"
         style={[styles.ghostNumber, { color: ramp.text }]}
         allowFontScaling={false}
+        accessible={false}
+        importantForAccessibility="no"
       >
         {String(index + 1).padStart(2, '0')}
       </Text>
