@@ -134,7 +134,7 @@ Optimización de escala: cachear píldoras compartidas entre usuarios con las mi
 
 **10 · Detalle de píldora guardada** — Mismo componente que pantalla 06. Solo cambia contexto y botón de acción. No desarrollar dos veces.
 
-**11 · Perfil + estadísticas** — Racha actual/máxima, total leídas/guardadas, top 3 categorías, mini-calendario estilo GitHub contributions (implementar desde MVP). Plan actual: free/premium.
+**11 · Perfil + estadísticas** — Racha actual/máxima, total leídas/guardadas, top 3 categorías. Plan actual: free/premium.
 
 **14 · Ajustes** — Editar categorías (reutiliza pantalla 03) · hora de notificación · plan · legales · cerrar sesión.
 

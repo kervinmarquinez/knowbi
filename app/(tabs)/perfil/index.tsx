@@ -1,9 +1,12 @@
 import { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAndroidTabBarPad } from '../../../lib/useAndroidTabBarPad';
-import { Stack, useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { Badge } from '../../../lib/ui/Badge';
 import { AuthGate } from '../../../lib/ui/AuthGate';
+import { Button } from '../../../lib/ui/Button';
+import { Flame } from '../../../lib/ui/Flame';
 import { supabase } from '../../../lib/supabase';
 import type { Category } from '../../../lib/ui/categories';
 
@@ -46,10 +49,17 @@ const DEFAULTS: ProfileData = {
   totalSaved: 0,
 };
 
-function buildCalendarCells(pills: PillRow[]): Cell[] {
-  const today = new Date();
-  const byDate = new Map<string, { total: number; read: number }>();
+type DayCell = { state: Cell; isToday: boolean; weekday: string };
 
+const RECENT_DAYS = 14;
+const WEEKDAY_INITIALS = ['D', 'L', 'M', 'X', 'J', 'V', 'S']; // índice = Date.getDay()
+
+// Tira de actividad: los últimos N días (más antiguo a la izquierda, hoy a la derecha).
+function buildRecentDays(pills: PillRow[], days: number): { days: DayCell[]; fullDays: number } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const byDate = new Map<string, { total: number; read: number }>();
   for (const p of pills) {
     const entry = byDate.get(p.date) ?? { total: 0, read: 0 };
     entry.total += 1;
@@ -57,22 +67,30 @@ function buildCalendarCells(pills: PillRow[]): Cell[] {
     byDate.set(p.date, entry);
   }
 
-  const cells: Cell[] = [];
-  for (let i = 83; i >= 0; i--) {
+  const todayStr = toDateString(today);
+  const result: DayCell[] = [];
+  let fullDays = 0;
+
+  for (let i = days - 1; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
     const key = toDateString(d);
     const entry = byDate.get(key);
 
+    let state: Cell;
     if (!entry || entry.read === 0) {
-      cells.push('empty');
+      state = 'empty';
     } else if (entry.read === entry.total) {
-      cells.push('full');
+      state = 'full';
+      fullDays += 1;
     } else {
-      cells.push('mid');
+      state = 'mid';
     }
+
+    result.push({ state, isToday: key === todayStr, weekday: WEEKDAY_INITIALS[d.getDay()] });
   }
-  return cells;
+
+  return { days: result, fullDays };
 }
 
 function computeTopCategories(pills: PillRow[]): { category: Category; count: number }[] {
@@ -90,8 +108,10 @@ function computeTopCategories(pills: PillRow[]): { category: Category; count: nu
 
 export default function PerfilScreen() {
   const androidTabBarPad = useAndroidTabBarPad();
+  const router = useRouter();
   const [data, setData] = useState<ProfileData>(DEFAULTS);
   const [isAnon, setIsAnon] = useState<boolean | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -152,6 +172,7 @@ export default function PerfilScreen() {
           totalRead: readRes.count ?? 0,
           totalSaved: savedRes.count ?? 0,
         });
+        setLoaded(true);
       }
 
       load().catch((e) => console.error('perfil load error', e));
@@ -161,7 +182,7 @@ export default function PerfilScreen() {
     }, []),
   );
 
-  const cells = useMemo(() => buildCalendarCells(data.pills), [data.pills]);
+  const recent = useMemo(() => buildRecentDays(data.pills, RECENT_DAYS), [data.pills]);
   const totalRead = data.totalRead;
   const totalSaved = data.totalSaved;
   const topCategories = useMemo(() => computeTopCategories(data.pills), [data.pills]);
@@ -196,6 +217,32 @@ export default function PerfilScreen() {
     );
   }
 
+  if (!loaded) {
+    return (
+      <>
+        <Stack.Screen options={{ title: 'Perfil' }} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color="#7F77DD" />
+        </View>
+      </>
+    );
+  }
+
+  // Día 1: usuario real sin ninguna lectura. Estado motivador + CTA (regla de producto #5).
+  if (totalRead === 0) {
+    return (
+      <>
+        <Stack.Screen options={{ title: 'Perfil' }} />
+        <ScrollView
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={{ flexGrow: 1 }}
+        >
+          <EmptyProfile onPress={() => router.push('/(tabs)')} />
+        </ScrollView>
+      </>
+    );
+  }
+
   return (
     <>
       <Stack.Screen options={{ title: 'Perfil' }} />
@@ -204,51 +251,54 @@ export default function PerfilScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 + androidTabBarPad }}
         showsVerticalScrollIndicator={false}
       >
-        <View className="bg-white rounded-card" style={[styles.card, { marginBottom: 16 }]}>
-          <Text
-            className="font-body text-body-text-muted"
-            style={{ fontSize: 12, lineHeight: 13, marginBottom: 8 }}
-          >
-            Racha actual
-          </Text>
-          <Text
-            className="font-display-bold text-amber"
-            style={{ fontSize: 40, lineHeight: 40, fontVariant: ['tabular-nums'] }}
-          >
-            {data.currentStreak}
-          </Text>
-          <Text
-            className="font-body text-body-text-muted"
-            style={{ fontSize: 13, lineHeight: 13, marginTop: 4 }}
-          >
-            días seguidos
-          </Text>
-        </View>
-
-        <View className="bg-white rounded-card" style={[styles.card, { marginBottom: 16 }]}>
-          <Text
-            className="font-body text-body-text-muted"
-            style={{ fontSize: 12, lineHeight: 13, marginBottom: 8 }}
-          >
-            Mejor racha
-          </Text>
-          <Text
-            className="font-display-semibold text-body-text-muted"
-            style={{ fontSize: 28, lineHeight: 28, fontVariant: ['tabular-nums'] }}
-          >
-            {data.maxStreak}
-          </Text>
-          <Text
-            className="font-body text-body-text-muted"
-            style={{ fontSize: 13, lineHeight: 13, marginTop: 4 }}
-          >
-            mejor racha
-          </Text>
+        <View
+          className="bg-white rounded-card"
+          style={[styles.card, { marginBottom: 16, flexDirection: 'row', alignItems: 'center' }]}
+          accessible
+          accessibilityRole="text"
+          accessibilityLabel={`Racha actual: ${data.currentStreak} ${
+            data.currentStreak === 1 ? 'día seguido' : 'días seguidos'
+          }. Mejor racha: ${data.maxStreak} ${data.maxStreak === 1 ? 'día' : 'días'}.`}
+        >
+          <Flame size={48} />
+          <View style={{ marginLeft: 16, flex: 1 }}>
+            <Text
+              className="font-body text-body-text-muted"
+              style={{ fontSize: 12, lineHeight: 13, marginBottom: 4 }}
+            >
+              Racha actual
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+              <Text
+                className="font-display-bold text-amber"
+                style={{ fontSize: 48, lineHeight: 50, fontVariant: ['tabular-nums'] }}
+              >
+                {data.currentStreak}
+              </Text>
+              <Text
+                className="font-body text-body-text-muted"
+                style={{ fontSize: 14, lineHeight: 14, marginLeft: 8 }}
+              >
+                días seguidos
+              </Text>
+            </View>
+            <Text
+              className="font-body text-body-text-muted"
+              style={{ fontSize: 13, lineHeight: 13 * 1.3, marginTop: 6 }}
+            >
+              Mejor racha · {data.maxStreak} {data.maxStreak === 1 ? 'día' : 'días'}
+            </Text>
+          </View>
         </View>
 
         <View className="bg-white rounded-card" style={[styles.card, { marginBottom: 16 }]}>
           <View style={{ flexDirection: 'row' }}>
-            <View style={{ flex: 1 }}>
+            <View
+              style={{ flex: 1 }}
+              accessible
+              accessibilityRole="text"
+              accessibilityLabel={`Píldoras leídas: ${totalRead}`}
+            >
               <Text
                 className="font-body text-body-text-muted"
                 style={{ fontSize: 12, lineHeight: 13, marginBottom: 6 }}
@@ -269,7 +319,12 @@ export default function PerfilScreen() {
                 marginHorizontal: 16,
               }}
             />
-            <View style={{ flex: 1 }}>
+            <View
+              style={{ flex: 1 }}
+              accessible
+              accessibilityRole="text"
+              accessibilityLabel={`Píldoras guardadas: ${totalSaved}`}
+            >
               <Text
                 className="font-body text-body-text-muted"
                 style={{ fontSize: 12, lineHeight: 13, marginBottom: 6 }}
@@ -324,17 +379,32 @@ export default function PerfilScreen() {
           >
             Actividad
           </Text>
-          <View style={styles.grid}>
-            {cells.map((c, i) => (
-              <View
-                key={i}
-                style={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: 2,
-                  backgroundColor: CELL_COLOR[c],
-                }}
-              />
+          <View
+            style={{ flexDirection: 'row', gap: 6 }}
+            accessible
+            accessibilityRole="text"
+            accessibilityLabel={`Tu actividad de los últimos ${RECENT_DAYS} días. ${
+              recent.fullDays
+            } ${recent.fullDays === 1 ? 'día' : 'días'} con las 5 píldoras leídas.`}
+          >
+            {recent.days.map((day, i) => (
+              <View key={i} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+                <View
+                  style={{
+                    width: '100%',
+                    aspectRatio: 1,
+                    borderRadius: 6,
+                    backgroundColor: CELL_COLOR[day.state],
+                    ...(day.isToday ? { borderWidth: 1.5, borderColor: '#1A1A2E' } : null),
+                  }}
+                />
+                <Text
+                  className="font-body text-body-text-muted"
+                  style={{ fontSize: 11, lineHeight: 12 }}
+                >
+                  {day.weekday}
+                </Text>
+              </View>
             ))}
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 14 }}>
@@ -345,6 +415,63 @@ export default function PerfilScreen() {
         </View>
       </ScrollView>
     </>
+  );
+}
+
+function EmptyProfile({ onPress }: { onPress: () => void }) {
+  return (
+    <View
+      style={{
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 32,
+        paddingBottom: 32,
+      }}
+    >
+      <View
+        style={{
+          width: 88,
+          height: 88,
+          borderRadius: 20,
+          backgroundColor: '#FAEEDA',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 20,
+        }}
+      >
+        <Ionicons name="flame-outline" size={40} color="#EF9F27" />
+      </View>
+      <Text
+        style={{
+          fontFamily: 'Nunito_800ExtraBold',
+          fontSize: 22,
+          lineHeight: 22 * 1.25,
+          color: '#1A1A2E',
+          textAlign: 'center',
+          letterSpacing: -0.22,
+        }}
+      >
+        Tu progreso empieza hoy
+      </Text>
+      <Text
+        style={{
+          fontFamily: 'DMSans_400Regular',
+          fontSize: 15,
+          lineHeight: 15 * 1.55,
+          color: '#444441',
+          textAlign: 'center',
+          marginTop: 10,
+          maxWidth: 320,
+        }}
+      >
+        Lee tus 5 píldoras de hoy y empieza a construir tu racha. Aquí verás tu progreso crecer cada
+        día.
+      </Text>
+      <View style={{ width: '100%', maxWidth: 320, marginTop: 28 }}>
+        <Button variant="primary" label="Leer mis píldoras de hoy" onPress={onPress} />
+      </View>
+    </View>
   );
 }
 
@@ -364,11 +491,5 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#E0DED8',
     padding: 20,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 3,
-    width: 12 * 12 + 11 * 3,
   },
 });
