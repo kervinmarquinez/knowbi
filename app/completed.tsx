@@ -115,15 +115,15 @@ export default function CompletedScreen() {
 
       // La racha se ata a la FECHA DEL SET completado (no al reloj): así es robusta a
       // zonas horarias y a que el usuario cambie su hora de drop en Ajustes.
-      let hhmm = await AsyncStorage.getItem('notification_time');
-      if (!hhmm) {
-        const { data: prefRow } = await supabase
-          .from('user_preferences')
-          .select('notification_time')
-          .eq('user_id', userId)
-          .maybeSingle();
-        hhmm = prefRow?.notification_time ?? null;
-      }
+      // BD-first (autoritativa, sincronizable entre dispositivos), AsyncStorage como caché:
+      // mismo orden que Ajustes para evitar discrepancias en la hora mostrada.
+      const { data: prefRow } = await supabase
+        .from('user_preferences')
+        .select('notification_time')
+        .eq('user_id', userId)
+        .maybeSingle();
+      let hhmm = prefRow?.notification_time ?? null;
+      if (!hhmm) hhmm = await AsyncStorage.getItem('notification_time');
       const dropHour = dropHourFromHHMM(hhmm);
       setNextDropHHMM(`${String(dropHour).padStart(2, '0')}:00`);
 
