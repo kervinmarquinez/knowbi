@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -139,6 +140,10 @@ export default function HoyScreen() {
   const translateX = useSharedValue(0);
   const idxSV = useSharedValue(0);
   const androidTabBarPad = useAndroidTabBarPad();
+  // Necesario en los useEffect de redirección: si Home se monta/queda activo sin foco
+  // (p. ej. usuario navegando a /(tabs)/guardados desde fuera), evitamos que dispare
+  // router.replace y hijackee al usuario fuera de su destino real.
+  const isFocused = useIsFocused();
 
   // Espejo de idx en el hilo de UI para posicionar las cards sin esperar al render.
   useEffect(() => {
@@ -215,15 +220,17 @@ export default function HoyScreen() {
 
   // Cold-start: al terminar la carga inicial, evalúa el aterrizaje. Clave solo en isLoading
   // (no en allRead) para no colisionar con el push de goCompleted durante el swipe en vivo.
+  // Guard de foco: si esta pestaña no es la activa, no redirigimos — un router.replace
+  // desde una pestaña en segundo plano arrastraría al usuario fuera de su destino real.
   useEffect(() => {
-    if (!isLoading) void routeOrReset();
-  }, [isLoading, routeOrReset]);
+    if (!isLoading && isFocused) void routeOrReset();
+  }, [isLoading, isFocused, routeOrReset]);
 
   useEffect(() => {
-    if (!isLoading && !error && pills.length === 0) {
+    if (!isLoading && !error && pills.length === 0 && isFocused) {
       router.replace('/no-pills');
     }
-  }, [isLoading, error, pills.length, router]);
+  }, [isLoading, error, pills.length, router, isFocused]);
 
   const promptSignup = useCallback(() => {
     Alert.alert(

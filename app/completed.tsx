@@ -246,7 +246,13 @@ export default function CompletedScreen() {
         <Button
           variant="secondary"
           label="Ver mis guardadas"
-          onPress={() => router.replace('/(tabs)/guardados')}
+          onPress={async () => {
+            // Misma válvula que "Volver a las píldoras de hoy": al entrar al grupo (tabs),
+            // el Home reactiva su useFocusEffect y, si ve allRead && !isReviewing, rebota
+            // a /completed. Marcar este set como en relectura evita ese bounce.
+            if (setDate) await markReviewing(setDate);
+            router.replace('/(tabs)/guardados');
+          }}
         />
       </Animated.View>
     </SafeAreaView>
