@@ -29,8 +29,8 @@ const SLIDES: Slide[] = [
   {
     key: 'value',
     illustration: 'mascot',
-    title: '5 cosas que no sabías, cada día.',
-    body: 'Píldoras cortas de curiosidad en 3 minutos. Sin scroll infinito, sin ruido.',
+    title: '5 cosas que no sabías, cada día, en 3 minutos.',
+    body: 'Píldoras cortas, sin scroll infinito y sin ruido.',
   },
   {
     key: 'personalised',

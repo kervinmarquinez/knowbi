@@ -218,16 +218,25 @@ export const CATEGORIES = [
 | Contexto | Copy |
 |----------|------|
 | Tagline | 5 cosas que no sabías, cada día, en 3 minutos. |
-| Onboarding título | Elige lo que te pica la curiosidad. |
-| Push notification | Tus 5 del día están listas. Una te va a sorprender. |
+| Welcome subtítulo beneficio 1 | Píldoras cortas, sin scroll infinito y sin ruido. |
+| Onboarding título (categorías) | Elige lo que te pica la curiosidad. |
+| Onboarding subtítulo (categorías) | Elige al menos 3 y hasta 8 temas. Cada día te traemos 5 píldoras de tus favoritos. |
+| Push notification (genérica) | Tus 5 del día están listas. Una te va a sorprender. |
+| Push notification (con categoría) | Tus 5 del día están listas. Hoy una es de {Categoría}. |
 | Completado título | ¡Ya tienes las 5 de hoy! |
 | Completado racha | Llevas X días seguidos. Eso es mucho más que la mayoría. |
+| Completado próxima entrega | Mañana a las HH:MM tienes 5 nuevas. |
 | Paywall título | Ya tienes tus 5 de hoy. |
+| Paywall copy | Por menos de un café al mes, aprende el doble cada día — y no pierdas ninguna curiosidad que ya encontraste. |
 | Paywall CTA | Empezar premium |
 | Paywall escape | Ahora no |
 | Sin píldoras aún | Aún no son las HH:MM. En X minutos tienes nuevas píldoras esperando. |
 | Guardados vacíos | Aquí aparecerán las píldoras que guardes. Pulsa el marcador cuando encuentres algo que merezca quedarse. |
-| Error técnico | Algo falló de nuestro lado. Reintentando... No pierdes tu racha. |
+| Error técnico (Home) | Algo falló de nuestro lado. Reintentando… No pierdes tu racha. |
+| Error genérico (alerts) | Título: "Algo falló". Body: "No pudimos guardar tus preferencias. Inténtalo otra vez." |
+| Home — Alert guardar sin cuenta | Título: "Crea una cuenta para guardar". Body: "Necesitas una cuenta para guardar tus píldoras favoritas y verlas cuando quieras." Botones: "Ahora no", "Ya tengo cuenta", "Crear cuenta". |
+| Cerrar sesión (modo invitado) | Si te vas sin crear cuenta, perderás tu racha y las píldoras de esta sesión. Crear cuenta es rápido. |
+| Login — Alert sobrescribir progreso anon | Como invitado tienes racha y guardados en este móvil. Si inicias sesión, los reemplazas por los de tu cuenta. |
 | Confirmación premium | Bienvenido al lado curioso del conocimiento. Tienes 10 píldoras al día. |
 
 ---

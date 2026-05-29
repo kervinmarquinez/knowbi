@@ -225,7 +225,7 @@ export default function AjustesScreen() {
 
       if (updateErr) {
         console.error('activate notifications update error', updateErr);
-        Alert.alert('Error', 'No pudimos guardar tus preferencias. Inténtalo otra vez.');
+        Alert.alert('Algo falló', 'No pudimos guardar tus preferencias. Inténtalo otra vez.');
         return;
       }
 
@@ -265,7 +265,7 @@ export default function AjustesScreen() {
         .eq('user_id', userData.user.id);
       if (updateErr) {
         console.error('deactivate notifications update error', updateErr);
-        Alert.alert('Error', 'No pudimos guardar tus preferencias. Inténtalo otra vez.');
+        Alert.alert('Algo falló', 'No pudimos guardar tus preferencias. Inténtalo otra vez.');
         return;
       }
       await AsyncStorage.setItem(NOTIFICATION_ENABLED_KEY, 'false');
@@ -291,7 +291,7 @@ export default function AjustesScreen() {
     Alert.alert(
       '¿Cerrar sesión?',
       state.isAnonymous
-        ? 'Vas a salir del modo invitado. Perderás el acceso a las píldoras de esta sesión si no creas una cuenta.'
+        ? 'Si te vas sin crear cuenta, perderás tu racha y las píldoras de esta sesión. Crear cuenta es rápido.'
         : 'Tendrás que volver a iniciar sesión para acceder a tu racha y tus píldoras guardadas.',
       [
         { text: 'Cancelar', style: 'cancel' },
@@ -368,7 +368,7 @@ export default function AjustesScreen() {
                 className="font-body text-body-text-muted"
                 style={{ fontSize: 12, lineHeight: 13 }}
               >
-                Bienvenido
+                Tu cuenta
               </Text>
               <Text
                 className="font-display-semibold text-ink"
@@ -396,7 +396,7 @@ export default function AjustesScreen() {
                 className="font-body-medium text-ink"
                 style={{ fontSize: 15, lineHeight: 15 * 1.3 }}
               >
-                Notificaciones bloqueadas en el sistema
+                Notificaciones bloqueadas
               </Text>
               <Text
                 className="font-body text-body-text-muted"

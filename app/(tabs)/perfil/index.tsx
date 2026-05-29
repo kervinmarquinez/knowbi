@@ -408,7 +408,7 @@ export default function PerfilScreen() {
             ))}
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 14 }}>
-            <Legend color="#F1EFE8" label="No abrió" />
+            <Legend color="#F1EFE8" label="No abriste" />
             <Legend color="#EF9F2766" label="Sin completar" />
             <Legend color="#EF9F27" label="Todas leídas" />
           </View>

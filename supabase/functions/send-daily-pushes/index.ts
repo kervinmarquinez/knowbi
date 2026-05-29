@@ -138,7 +138,7 @@ async function buildMessageForUser(userId: string, categories: string[], date: s
   return {
     title: "Knowbi",
     body: category
-      ? `Tus ${count} del día están listas. Hay una de ${category} que te va a sorprender.`
+      ? `Tus ${count} del día están listas. Hoy una es de ${category}.`
       : `Tus ${count} del día están listas. Una te va a sorprender.`,
   };
 }
@@ -340,12 +340,15 @@ Deno.serve(async (_req) => {
     if (updErr) console.error("failed to null dead token (immediate)", d.user_id, updErr);
   }
 
-  // Marca el día de envío para no reenviar hoy a estos usuarios (dedup diario).
-  if (sentUserIds.length > 0) {
+  // Marca el día de envío SOLO para usuarios cuyo ticket aceptó Expo. Si Expo devolvió
+  // error (HTTP fail o ticket rechazado), no marcamos: así el cron de mañana reintenta
+  // en vez de enmascarar el fallo y bloquear al usuario en silencio.
+  const deliveredUserIds = receiptInserts.map((r) => r.user_id);
+  if (deliveredUserIds.length > 0) {
     const { error: markErr } = await supabase
       .from("user_preferences")
       .update({ last_push_date: date })
-      .in("user_id", sentUserIds);
+      .in("user_id", deliveredUserIds);
     if (markErr) console.error("failed to mark last_push_date", markErr);
   }
 

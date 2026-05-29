@@ -24,7 +24,7 @@ function confirmAnonOverwrite(): Promise<boolean> {
   return new Promise((resolve) => {
     Alert.alert(
       'Vas a cambiar de cuenta',
-      'Tienes progreso como invitado (píldoras leídas, guardadas o racha). Si inicias sesión con tu cuenta, ese progreso se reemplazará por el de tu cuenta.',
+      'Como invitado tienes racha y guardados en este móvil. Si inicias sesión, los reemplazas por los de tu cuenta.',
       [
         { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
         { text: 'Continuar', style: 'destructive', onPress: () => resolve(true) },

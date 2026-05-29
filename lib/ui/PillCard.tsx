@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Badge } from './Badge';
 import { SaveButton } from './SaveButton';
 import { CATEGORY_RAMPS, type Category } from './categories';
@@ -9,6 +10,7 @@ type Pill = {
   title: string;
   body: string;
   date?: string;
+  is_read?: boolean;
 };
 
 export function PillCard({
@@ -37,7 +39,24 @@ export function PillCard({
       >
         {String(index + 1).padStart(2, '0')}
       </Text>
-      <Badge category={pill.category} />
+      <View className="flex-row items-center justify-between">
+        <Badge category={pill.category} />
+        {pill.is_read === false ? (
+          <View
+            accessibilityLabel="Píldora nueva"
+            className="flex-row items-center gap-1.5 px-3 rounded-badge"
+            style={{ backgroundColor: ramp.text, height: 26 }}
+          >
+            <Ionicons name="sparkles" size={12} color="#FFFFFF" />
+            <Text
+              className="font-body-medium"
+              style={{ fontSize: 11, lineHeight: 11, color: '#FFFFFF' }}
+            >
+              Nueva
+            </Text>
+          </View>
+        ) : null}
+      </View>
       <Text
         className="font-display-bold"
         style={[styles.title, { color: ramp.text }]}

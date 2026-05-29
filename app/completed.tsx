@@ -229,7 +229,7 @@ export default function CompletedScreen() {
             ]}
             className="font-body text-body-text-muted text-center"
           >
-            Tus próximas 5 llegan a las {nextDropHHMM}.
+            Mañana a las {nextDropHHMM} tienes 5 nuevas.
           </Animated.Text>
         ) : null}
       </View>

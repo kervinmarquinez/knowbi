@@ -50,6 +50,7 @@ type StackPill = {
   body: string;
   date: string;
   is_saved: boolean;
+  is_read: boolean;
 };
 
 // Una card persistente. Su CONTENIDO nunca cambia (keyed por id); solo su POSICIÓN,
@@ -111,6 +112,7 @@ function StackCard({
           title: pill.title,
           body: pill.body,
           date: pill.date,
+          is_read: pill.is_read,
         }}
         index={absIndex}
         total={total}
@@ -238,7 +240,7 @@ export default function HoyScreen() {
       'Necesitas una cuenta para guardar tus píldoras favoritas y verlas cuando quieras.',
       [
         { text: 'Ahora no', style: 'cancel' },
-        { text: 'Iniciar sesión', onPress: () => router.push('/(auth)/login?from=save') },
+        { text: 'Ya tengo cuenta', onPress: () => router.push('/(auth)/login?from=save') },
         { text: 'Crear cuenta', onPress: () => router.push('/(auth)/signup?from=save') },
       ],
     );
@@ -385,7 +387,7 @@ export default function HoyScreen() {
           className="font-body text-body-text"
           style={{ fontSize: 15, textAlign: 'center', marginHorizontal: 32 }}
         >
-          Algo falló. Tira hacia abajo para reintentar.
+          Algo falló de nuestro lado. Reintentando… No pierdes tu racha.
         </Text>
         <TouchableOpacity onPress={refetch} style={{ marginTop: 20 }}>
           <Text style={{ fontSize: 15, color: '#7F77DD', fontWeight: '600' }}>Reintentar</Text>
