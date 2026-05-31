@@ -1,6 +1,7 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { classifyReceipts, type ExpoReceipt, type ReceiptRow } from "./receipts.ts";
+import { pendingNotCompletedToday, type StreakRow } from "./completedToday.ts";
 
 type PendingUser = {
   user_id: string;
@@ -28,6 +29,7 @@ type ExpoTicket =
 
 type Summary = {
   matched: number;
+  skipped: number;
   sent: number;
   failed: number;
 };
@@ -263,8 +265,32 @@ Deno.serve(async (_req) => {
     );
   }
 
-  const pending = (users ?? []) as PendingUser[];
-  const summary: Summary = { matched: pending.length, sent: 0, failed: 0 };
+  const candidates = (users ?? []) as PendingUser[];
+
+  if (candidates.length === 0) {
+    const summary: Summary = { matched: 0, skipped: 0, sent: 0, failed: 0 };
+    return new Response(JSON.stringify({ ...summary, receipts, hhmm, date }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  // No molestar a quien ya completó el set de hoy: al llegar a Completado (las 5 leídas)
+  // bump_streak deja user_streaks.last_active_date = hoy. El sender usa service-role, así
+  // que RLS no bloquea leer estas filas. Si la consulta falla, no filtramos a nadie
+  // (mejor enviar de más que silenciar por error).
+  const { data: streakRows, error: streakErr } = await supabase
+    .from("user_streaks")
+    .select("user_id, last_active_date")
+    .in("user_id", candidates.map((u) => u.user_id));
+  if (streakErr) console.error("user_streaks lookup failed", streakErr);
+
+  const pending = pendingNotCompletedToday(candidates, (streakRows ?? []) as StreakRow[], date);
+  const summary: Summary = {
+    matched: candidates.length,
+    skipped: candidates.length - pending.length,
+    sent: 0,
+    failed: 0,
+  };
 
   if (pending.length === 0) {
     return new Response(JSON.stringify({ ...summary, receipts, hhmm, date }), {
@@ -272,7 +298,9 @@ Deno.serve(async (_req) => {
     });
   }
 
-  console.log(`sender start: ${pending.length} users at ${hhmm} Madrid (${date})`);
+  console.log(
+    `sender start: ${pending.length} users at ${hhmm} Madrid (${date}) (${summary.skipped} ya completaron)`,
+  );
 
   // Construye mensajes en paralelo.
   const messages: ExpoMessage[] = [];
