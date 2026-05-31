@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { View, Text, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
@@ -20,7 +19,7 @@ import { TopBar } from '../lib/ui/TopBar';
 import { Button } from '../lib/ui/Button';
 import { Flame } from '../lib/ui/Flame';
 import { supabase } from '../lib/supabase';
-import { windowDate, dropHourFromHHMM } from '../lib/dropWindow';
+import { windowDate, minutesUntilNextDrop, formatTimeUntil } from '../lib/dropWindow';
 import { markReviewing } from '../lib/completedReview';
 
 Animated.addWhitelistedNativeProps({ text: true });
@@ -29,8 +28,10 @@ const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 export default function CompletedScreen() {
   const router = useRouter();
   const [streak, setStreak] = useState<number | null>(null);
-  const [nextDropHHMM, setNextDropHHMM] = useState<string | null>(null);
   const [setDate, setSetDate] = useState<string | null>(null);
+  // Cuenta atrás estática hasta el próximo drop (medianoche). Se fija al montar; se
+  // refresca si el usuario vuelve a abrir la pantalla.
+  const [nextDropLabel] = useState(() => formatTimeUntil(minutesUntilNextDrop()));
 
   // --- Coreografía de entrada (Reanimated, hilo de UI) ---
   const titleOpacity = useSharedValue(0);
@@ -111,23 +112,10 @@ export default function CompletedScreen() {
     async function syncStreak() {
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       if (userErr || !userData.user) return;
-      const userId = userData.user.id;
 
-      // La racha se ata a la FECHA DEL SET completado (no al reloj): así es robusta a
-      // zonas horarias y a que el usuario cambie su hora de drop en Ajustes.
-      // BD-first (autoritativa, sincronizable entre dispositivos), AsyncStorage como caché:
-      // mismo orden que Ajustes para evitar discrepancias en la hora mostrada.
-      const { data: prefRow } = await supabase
-        .from('user_preferences')
-        .select('notification_time')
-        .eq('user_id', userId)
-        .maybeSingle();
-      let hhmm = prefRow?.notification_time ?? null;
-      if (!hhmm) hhmm = await AsyncStorage.getItem('notification_time');
-      const dropHour = dropHourFromHHMM(hhmm);
-      setNextDropHHMM(`${String(dropHour).padStart(2, '0')}:00`);
-
-      const today = windowDate(dropHour);
+      // La racha se ata a la FECHA DEL SET completado (hoy en Madrid, ya que el drop es a
+      // medianoche), no al reloj: así es robusta a zonas horarias.
+      const today = windowDate();
       setSetDate(today);
 
       // Toda la lógica de racha (alta/incremento/reset, idempotente) ocurre de forma
@@ -221,17 +209,15 @@ export default function CompletedScreen() {
           Llevas {displayStreak} días seguidos. Eso es mucho más que la mayoría.
         </Animated.Text>
 
-        {nextDropHHMM ? (
-          <Animated.Text
-            style={[
-              { fontSize: 13, lineHeight: 13 * 1.5, marginTop: 18, maxWidth: 280 },
-              subtitleStyle,
-            ]}
-            className="font-body text-body-text-muted text-center"
-          >
-            Mañana a las {nextDropHHMM} tienes 5 nuevas.
-          </Animated.Text>
-        ) : null}
+        <Animated.Text
+          style={[
+            { fontSize: 13, lineHeight: 13 * 1.5, marginTop: 18, maxWidth: 280 },
+            subtitleStyle,
+          ]}
+          className="font-body text-body-text-muted text-center"
+        >
+          Tus próximas 5 llegan en {nextDropLabel}.
+        </Animated.Text>
       </View>
       <Animated.View style={[{ paddingHorizontal: 20, paddingBottom: 12, gap: 8 }, buttonsStyle]}>
         <Button

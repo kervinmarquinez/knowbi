@@ -38,11 +38,12 @@ const SERVICE_ROLE_JWT = requireEnv("SERVICE_ROLE_JWT");
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-// Fecha objetivo del batch en UTC. INVARIANTE: este job está programado a las 22:00 UTC
-// (cron_setup.sql). A esa hora, "UTC mañana" coincide con la fecha Madrid que los usuarios
-// consumirán a continuación, tanto en CET (Madrid 23:00) como en CEST (Madrid 00:00) —y por
-// eso cuadra con windowDate() del cliente y todayMadridISO() del sender, que sí van en
-// Madrid. ⚠️ Si cambias la hora del cron, revisa esto: fuera de la franja ~21:00–23:59 UTC
+// Fecha objetivo del batch en UTC. INVARIANTE: este job está programado a las 21:00 UTC
+// (cron_setup.sql), adelantado para dejar margen antes del drop de medianoche (00:00 Madrid).
+// A las 21:00 UTC, "UTC mañana" coincide con la fecha Madrid que los usuarios consumirán a
+// partir de medianoche, tanto en CET (Madrid 22:00) como en CEST (Madrid 23:00) —y por eso
+// cuadra con windowDate() del cliente y todayMadridISO() del sender, que van en Madrid.
+// ⚠️ Si cambias la hora del cron, revisa esto: fuera de la franja ~21:00–23:59 UTC
 // "UTC mañana" puede dejar de coincidir con la fecha Madrid de consumo.
 function tomorrowISO(): string {
   const d = new Date();

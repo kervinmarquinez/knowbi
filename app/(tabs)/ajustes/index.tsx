@@ -158,8 +158,8 @@ export default function AjustesScreen() {
 
   const onTimeChange = (_event: DateTimePickerEvent, selected?: Date) => {
     if (!selected) return;
-    // La hora de drop opera por horas en punto (la ventana usa solo la hora). Redondeamos
-    // a HH:00 para que coincidan el drop, el push y la cuenta atrás de Completado.
+    // El aviso opera por horas en punto: redondeamos a HH:00 (el sender matchea HH:MM
+    // exacto). El drop de píldoras es a medianoche y no depende de esta hora.
     const floored = new Date(selected);
     floored.setMinutes(0, 0, 0);
     const hhmm = formatHour(floored);
@@ -417,15 +417,16 @@ export default function AjustesScreen() {
             </>
           ) : (
             <>
-              {/* La hora de drop es independiente del aviso: se muestra siempre. */}
-              {
+              {/* Hora del recordatorio (push). Solo se muestra con el aviso activo; el drop
+                  de píldoras es a medianoche, aparte. */}
+              {state.notificationEnabled && (
                 <>
                   <View style={styles.row}>
                     <Text
                       className="font-body-medium text-ink"
                       style={{ fontSize: 15, lineHeight: 15 * 1.3 }}
                     >
-                      Hora de tus píldoras
+                      Hora del recordatorio
                     </Text>
                     {Platform.OS === 'ios' ? (
                       <DateTimePicker
@@ -456,7 +457,7 @@ export default function AjustesScreen() {
                   </View>
                   <View style={styles.divider} />
                 </>
-              }
+              )}
               <View style={styles.row}>
                 <Text
                   className="font-body-medium text-ink"

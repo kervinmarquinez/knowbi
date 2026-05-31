@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Button } from '../../lib/ui/Button';
 import { supabase } from '../../lib/supabase';
-import { currentMadridDropHHMM } from '../../lib/dropWindow';
 import {
   requestNotificationPermission,
   registerForExpoPushToken,
@@ -16,6 +15,9 @@ import {
 
 const NOTIFICATION_TIME_KEY = 'notification_time';
 const NOTIFICATION_ENABLED_KEY = 'notification_enabled';
+// Hora por defecto del aviso (push). El usuario la ajusta luego en Ajustes; el drop de
+// píldoras es a medianoche y no depende de esta hora.
+const DEFAULT_NOTIFICATION_TIME = '09:00';
 
 async function syncPreferencesToSupabase(input: {
   notificationTime: string;
@@ -45,16 +47,14 @@ export default function NotificationOnboarding() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
 
-  // La hora de drop se fija a la hora a la que el usuario llega a esta pantalla (≈ created_at),
-  // sin que tenga que elegirla. Editable después en Ajustes.
   const finish = useCallback(
     async (enable: boolean) => {
       if (submitting) return;
       setSubmitting(true);
-      const dropHHMM = currentMadridDropHHMM();
+      const notificationHHMM = DEFAULT_NOTIFICATION_TIME;
       let notificationEnabled = false;
       try {
-        await AsyncStorage.setItem(NOTIFICATION_TIME_KEY, dropHHMM);
+        await AsyncStorage.setItem(NOTIFICATION_TIME_KEY, notificationHHMM);
         if (enable) {
           const granted = await requestNotificationPermission();
           if (granted) {
@@ -77,7 +77,7 @@ export default function NotificationOnboarding() {
         }
         await AsyncStorage.setItem(NOTIFICATION_ENABLED_KEY, String(notificationEnabled));
         await syncPreferencesToSupabase({
-          notificationTime: dropHHMM,
+          notificationTime: notificationHHMM,
           notificationEnabled,
         });
         if (notificationEnabled) {

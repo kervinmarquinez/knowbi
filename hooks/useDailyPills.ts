@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { wasKickedToday, clearKickoff } from '../lib/pillsKickoff';
-import { windowDate, dropHourFromHHMM } from '../lib/dropWindow';
+import { windowDate } from '../lib/dropWindow';
 
 export type DailyPill = {
   id: string;
@@ -23,19 +23,6 @@ const POLL_INTERVAL_MS = 3000;
 const MAX_POLLS = 30;
 
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-// Hora de drop del usuario (entero 0-23, Madrid). Preferimos AsyncStorage (rápido) y
-// caemos a user_preferences si no está en local.
-async function getDropHour(userId: string): Promise<number> {
-  const local = await AsyncStorage.getItem('notification_time');
-  if (local) return dropHourFromHHMM(local);
-  const { data } = await supabase
-    .from('user_preferences')
-    .select('notification_time')
-    .eq('user_id', userId)
-    .maybeSingle();
-  return dropHourFromHHMM(data?.notification_time);
-}
 
 async function getUserCategories(): Promise<string[]> {
   const raw = await AsyncStorage.getItem('user_categories');
@@ -83,8 +70,7 @@ export function useDailyPills() {
       return;
     }
     const userId = sessionData.session.user.id;
-    const dropHour = await getDropHour(userId);
-    const date = windowDate(dropHour);
+    const date = windowDate();
     if (isStale()) return;
 
     const { data, error: queryErr } = await supabase

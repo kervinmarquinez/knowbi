@@ -89,7 +89,9 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 | AsyncStorage | Datos locales | Sesión anónima por defecto; auth real (email+pass o Google) ofrecida en welcome y exigida para guardar / ver racha |
 
 ### Decisión técnica clave: batch nocturno
-Cada noche un cron job a las 23:00 genera las píldoras del día siguiente para todos los usuarios activos y las almacena en Supabase. El usuario las ve instantáneas al abrir la app. **No generar en tiempo real.**
+Cada noche un cron job a las **21:00 UTC** (22:00 Madrid CET / 23:00 CEST) genera las píldoras del día siguiente para todos los usuarios activos y las almacena en Supabase, con margen para que estén listas antes del **drop de medianoche**. El usuario las ve instantáneas al abrir la app. **No generar en tiempo real.**
+
+**Drop a medianoche + aviso desacoplado:** las píldoras nuevas aparecen a las **00:00 (Madrid)** para todos — "tus 5 de hoy" = el día natural (`windowDate()` en `lib/dropWindow.ts`). La hora de notificación (`user_preferences.notification_time`) es **independiente del drop**: solo gobierna el push/recordatorio, a la hora que el usuario elija en Ajustes (default `09:00`). La pantalla Completado muestra una cuenta atrás hasta la próxima medianoche.
 
 Optimización de escala: cachear píldoras compartidas entre usuarios con las mismas categorías. Puede reducir el coste de IA un 40–60% a escala.
 
@@ -122,13 +124,13 @@ Optimización de escala: cachear píldoras compartidas entre usuarios con las mi
 
 **03 · Selección de categorías** — Grid 4×4, 16 categorías. CTA activo solo con 3+ seleccionadas (máx 8). Se reutiliza desde Ajustes con preferencias preseleccionadas.
 
-**04 · Configurar notificación** — Selector de hora + permiso push al SO. Link "Ahora no" existe pero visualmente desincentivado (texto pequeño). Retención D7 un 40–60% mayor con notificación activa.
+**04 · Configurar notificación** — Permiso push al SO. La hora del recordatorio arranca en `09:00` por defecto (editable luego en Ajustes; el drop es a medianoche, aparte). Link "Ahora no" existe pero visualmente desincentivado (texto pequeño). Retención D7 un 40–60% mayor con notificación activa.
 
 **05 · Home — stack de 5 píldoras** — Cards apiladas, swipe vertical. Indicador de progreso 1/5…5/5. Contador de racha discreto arriba.
 
 **07 · Completado + racha** — Tras deslizar la quinta. Racha actual (Nunito 64px amber). CTA "Quiero más hoy" → paywall. **Único punto de entrada al paywall.**
 
-**08 · Sin píldoras aún hoy** — Aparece si el usuario abre antes de su hora configurada. Mensaje cálido + hora de llegada + CTA "Ver guardados". CRÍTICA para retención temprana — nunca pantalla vacía sin contexto.
+**08 · Sin píldoras aún hoy** — Red de seguridad: aparece en el hueco raro entre el drop de medianoche y que el batch termine de generar (o si falla). Mensaje cálido de "en camino" + CTA "Ver guardados". CRÍTICA para retención temprana — nunca pantalla vacía sin contexto.
 
 **09 · Biblioteca de guardados** — Lista filtrable por chips de categoría. Estado vacío con mensaje motivacional (no de error).
 
@@ -225,12 +227,12 @@ export const CATEGORIES = [
 | Push notification (con categoría) | Tus 5 del día están listas. Hoy una es de {Categoría}. |
 | Completado título | ¡Ya tienes las 5 de hoy! |
 | Completado racha | Llevas X días seguidos. Eso es mucho más que la mayoría. |
-| Completado próxima entrega | Mañana a las HH:MM tienes 5 nuevas. |
+| Completado próxima entrega | Tus próximas 5 llegan en {Xh Ym}. |
 | Paywall título | Ya tienes tus 5 de hoy. |
 | Paywall copy | Por menos de un café al mes, aprende el doble cada día — y no pierdas ninguna curiosidad que ya encontraste. |
 | Paywall CTA | Empezar premium |
 | Paywall escape | Ahora no |
-| Sin píldoras aún | Aún no son las HH:MM. En X minutos tienes nuevas píldoras esperando. |
+| Sin píldoras aún | Estamos preparando tus 5 de hoy. Llegan en un momento. |
 | Guardados vacíos | Aquí aparecerán las píldoras que guardes. Pulsa el marcador cuando encuentres algo que merezca quedarse. |
 | Error técnico (Home) | Algo falló de nuestro lado. Reintentando… No pierdes tu racha. |
 | Error genérico (alerts) | Título: "Algo falló". Body: "No pudimos guardar tus preferencias. Inténtalo otra vez." |
@@ -253,6 +255,29 @@ export const CATEGORIES = [
 8. **Pantalla 10 reutiliza el componente de la 06.** No duplicar código.
 9. **Auth en welcome con anónimo permitido.** La primera pantalla (`app/(auth)/welcome.tsx`) ofrece Crear cuenta, Iniciar sesión y "Explorar sin cuenta". El flujo anónimo (`signInAnonymously` vía `ensureAnonymousSession`) sigue vivo. **Guardar píldoras y ver Guardados/Perfil exigen cuenta real** — en esos puntos se muestra `<AuthGate>` (Guardados, Perfil) o un `Alert` de upsell (botón Guardar / bookmark del Home).
 10. **Build** Cada vez que editemos el código, mencionar al usuario si hay que volver a hacer un eas build o vale con un eas update.
+
+---
+
+## Verificación antes de commitear
+
+- **Typecheck obligatorio.** Antes de commitear, `npx tsc --noEmit` debe pasar limpio. Solo se commitea con typecheck en verde. (Hay un hook `PostToolUse` que ya lo corre tras cada edit de forma no bloqueante — úsalo como aviso temprano, no como excusa para saltarte el gate antes del commit.)
+- No declares un fix "terminado" sin haber corrido la verificación correspondiente (typecheck y, si aplica, `jest`).
+
+## Supabase / Edge Functions — gotchas
+
+- **API de Anthropic: header `x-api-key`, NO `Bearer`.** Cambiar a Bearer rompe con 401. (Para llamadas función→función, usar el JWT de service role; ver memoria de auth entre Edge Functions.)
+- **Casts de columna deben coincidir con el tipo de producción.** Las horas son `time`, no `TEXT`. Un cast a tipo equivocado en un backfill/migración rompe en prod.
+- **Nunca añadir al `.gitignore` archivos de config trackeados** como `google-services.json` — el build de EAS falla sin ellos.
+
+## Estilo de trabajo
+
+- **No pedir API keys ni lanzar subagentes para tareas simples de escritura.** Si te piden escribir/editar una Edge Function o un archivo, escríbelo directamente. Delegar en subagentes es solo para exploración amplia de código, no para escribir un archivo concreto.
+- Ante un bug, consulta evidencia (estado de BD, logs) antes de teorizar la causa raíz; no atribuyas a "latencia de Android" u otras causas genéricas sin datos.
+
+## Stack y despliegue
+
+- Proyecto **Expo (React Native) + Supabase + TypeScript**.
+- **Si un cambio de código no aparece en la app, sospecha primero del skew nativo / fingerprint de EAS, no de un bug de código.** Cambios solo-JS se despliegan con `eas update`; cambios nativos exigen `eas build` (ver regla #10 y memoria OTA). El skill `/ship` aplica esta decisión.
 
 ---
 

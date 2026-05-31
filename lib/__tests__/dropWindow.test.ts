@@ -1,10 +1,4 @@
-import {
-  madridNowParts,
-  windowDate,
-  dropHourFromHHMM,
-  currentMadridDropHHMM,
-  minutesUntilDrop,
-} from '../dropWindow';
+import { madridNowParts, windowDate, minutesUntilNextDrop, formatTimeUntil } from '../dropWindow';
 
 // Toda la lógica de dropWindow lee `new Date()` y lo interpreta en Europe/Madrid.
 // Fijamos el instante con fake timers para que los tests sean deterministas e
@@ -22,23 +16,6 @@ function setNow(iso: string) {
   jest.setSystemTime(new Date(iso));
 }
 
-describe('dropHourFromHHMM', () => {
-  it('extrae la hora de un HH:MM válido', () => {
-    expect(dropHourFromHHMM('09:30')).toBe(9);
-    expect(dropHourFromHHMM('23:00')).toBe(23);
-    expect(dropHourFromHHMM('00:00')).toBe(0);
-  });
-
-  it('cae al default 9 con entradas inválidas', () => {
-    expect(dropHourFromHHMM(null)).toBe(9);
-    expect(dropHourFromHHMM(undefined)).toBe(9);
-    expect(dropHourFromHHMM('')).toBe(9);
-    expect(dropHourFromHHMM('abc')).toBe(9);
-    expect(dropHourFromHHMM('25:00')).toBe(9); // fuera de rango por arriba
-    expect(dropHourFromHHMM('-1:00')).toBe(9); // fuera de rango por abajo
-  });
-});
-
 describe('madridNowParts', () => {
   it('devuelve fecha/hora/minuto en hora de Madrid (CEST en mayo)', () => {
     setNow('2026-05-27T07:30:00Z'); // 09:30 en Madrid
@@ -52,61 +29,60 @@ describe('madridNowParts', () => {
 });
 
 describe('windowDate', () => {
-  it('a partir de la hora de drop devuelve el set de hoy', () => {
+  it('devuelve siempre la fecha natural de hoy en Madrid (drop a medianoche)', () => {
     setNow('2026-05-27T07:30:00Z'); // 09:30 Madrid
-    expect(windowDate(9)).toBe('2026-05-27');
+    expect(windowDate()).toBe('2026-05-27');
   });
 
-  it('antes de la hora de drop devuelve el set de ayer', () => {
-    setNow('2026-05-27T07:30:00Z'); // 09:30 Madrid
-    expect(windowDate(10)).toBe('2026-05-26');
-  });
-
-  it('de madrugada (antes del drop) devuelve ayer cruzando medianoche', () => {
+  it('de madrugada ya es el set del nuevo día (justo pasado el drop)', () => {
     setNow('2026-05-27T00:30:00Z'); // 02:30 Madrid
-    expect(windowDate(9)).toBe('2026-05-26');
+    expect(windowDate()).toBe('2026-05-27');
   });
 
-  it('retrocede correctamente a través de un cambio de mes', () => {
+  it('cruza de día con el offset de Madrid, no con el de UTC', () => {
     setNow('2026-05-31T22:30:00Z'); // 2026-06-01 00:30 Madrid
-    expect(windowDate(9)).toBe('2026-05-31');
+    expect(windowDate()).toBe('2026-06-01');
   });
 
-  it('usa la hora de Madrid en invierno (CET, UTC+1), no la de UTC', () => {
-    // 08:30Z en enero = 09:30 Madrid. Si usara la hora UTC (8) daría el set de ayer.
-    setNow('2026-01-15T08:30:00Z');
-    expect(windowDate(9)).toBe('2026-01-15'); // 9 >= 9 → hoy
-    expect(windowDate(10)).toBe('2026-01-14'); // 9 < 10 → ayer
+  it('usa la hora de Madrid en invierno (CET, UTC+1)', () => {
+    setNow('2026-01-15T23:30:00Z'); // 2026-01-16 00:30 Madrid
+    expect(windowDate()).toBe('2026-01-16');
   });
 });
 
-describe('minutesUntilDrop', () => {
-  it('cuenta los minutos hasta un drop posterior en el mismo día', () => {
-    setNow('2026-05-27T07:30:00Z'); // 09:30 Madrid
-    expect(minutesUntilDrop(11)).toBe(90);
-    expect(minutesUntilDrop(10)).toBe(30);
+describe('minutesUntilNextDrop', () => {
+  it('cuenta los minutos hasta la próxima medianoche de Madrid', () => {
+    setNow('2026-05-27T19:00:00Z'); // 21:00 Madrid → 3 h
+    expect(minutesUntilNextDrop()).toBe(180);
   });
 
-  it('si el drop ya pasó hoy, cuenta hasta el de mañana (+24h)', () => {
-    setNow('2026-05-27T07:30:00Z'); // 09:30 Madrid
-    expect(minutesUntilDrop(9)).toBe(1410); // 1440 - 30
-  });
-
-  it('envuelve correctamente cerca de medianoche', () => {
+  it('justo antes de medianoche quedan pocos minutos', () => {
     setNow('2026-05-27T21:45:00Z'); // 23:45 Madrid
-    expect(minutesUntilDrop(0)).toBe(15);
+    expect(minutesUntilNextDrop()).toBe(15);
+  });
+
+  it('recién pasada la medianoche faltan casi 24 h', () => {
+    setNow('2026-05-26T22:01:00Z'); // 00:01 Madrid
+    expect(minutesUntilNextDrop()).toBe(1439);
+  });
+
+  it('usa la hora de Madrid en invierno (CET)', () => {
+    setNow('2026-01-15T20:00:00Z'); // 21:00 Madrid → 3 h
+    expect(minutesUntilNextDrop()).toBe(180);
   });
 });
 
-describe('currentMadridDropHHMM', () => {
-  it('hace floor a la hora en punto de Madrid', () => {
-    setNow('2026-05-27T07:30:00Z'); // 09:30 Madrid
-    expect(currentMadridDropHHMM()).toBe('09:00');
+describe('formatTimeUntil', () => {
+  it('formatea horas y minutos', () => {
+    expect(formatTimeUntil(200)).toBe('3 h 20 min');
+  });
 
-    setNow('2026-05-27T21:45:00Z'); // 23:45 Madrid
-    expect(currentMadridDropHHMM()).toBe('23:00');
+  it('solo minutos cuando es menos de una hora', () => {
+    expect(formatTimeUntil(45)).toBe('45 min');
+  });
 
-    setNow('2026-05-27T00:30:00Z'); // 02:30 Madrid
-    expect(currentMadridDropHHMM()).toBe('02:00');
+  it('solo horas cuando no hay minutos sueltos', () => {
+    expect(formatTimeUntil(120)).toBe('2 h');
+    expect(formatTimeUntil(60)).toBe('1 h');
   });
 });
