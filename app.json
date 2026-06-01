@@ -3,7 +3,7 @@
     "name": "knowbi",
     "slug": "knowbi",
     "scheme": "knowbi",
-    "version": "1.0.1",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -14,7 +14,8 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.knowbi.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +24,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.knowbi",
+      "package": "com.knowbi.app",
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
