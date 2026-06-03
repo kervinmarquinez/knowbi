@@ -1,0 +1,98 @@
+<!-- Asunto recomendado en Supabase: Tu código de acceso a Knowbi -->
+<!-- Plantilla "Magic link or OTP". La app de Knowbi NO usa login por enlace:
+     el flujo de recuperación (recover.tsx → signInWithOtp) envía un código de 6
+     dígitos que el usuario teclea en la app. Por eso esta plantilla muestra solo
+     el código {{ .Token }}, sin botón de enlace. Si algún día añades login por
+     magic link, habría que recuperar el botón con {{ .ConfirmationURL }}. -->
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+    <title>Tu código de acceso a Knowbi</title>
+    <style>
+      /* Clientes que lo soportan (Apple Mail, iOS) cargan las fuentes de marca.
+         Gmail/Outlook ignoran este bloque y usan el fallback inline. */
+      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Nunito:wght@700;800&display=swap');
+      body { margin: 0; padding: 0; width: 100% !important; }
+      a { color: #3c3489; }
+      img { border: 0; line-height: 100%; outline: none; text-decoration: none; }
+    </style>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f7f7fc;">
+    <!-- Preheader (texto de vista previa en la bandeja, oculto) -->
+    <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#f7f7fc; opacity:0;">
+      Tu código para continuar en Knowbi.
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f7f7fc;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px; margin:0 auto;">
+
+            <!-- Marca -->
+            <tr>
+              <td style="padding:0 4px 20px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="vertical-align:middle; padding-right:8px;">
+                      <img src="https://knowbiapp.space/assets/mascot-head.png" width="28" height="28" alt="Knowbi" style="display:block; width:28px; height:28px;" />
+                    </td>
+                    <td style="vertical-align:middle; font-family:Nunito,'Trebuchet MS','Segoe UI',Tahoma,sans-serif; font-weight:800; font-size:20px; color:#1a1a2e; letter-spacing:-0.02em;">
+                      Knowbi
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Tarjeta -->
+            <tr>
+              <td style="background-color:#ffffff; border:1px solid #e0ded8; border-radius:16px; padding:36px 32px;">
+                <h1 style="margin:0 0 14px; font-family:Nunito,'Trebuchet MS','Segoe UI',Tahoma,sans-serif; font-weight:800; font-size:26px; line-height:1.2; color:#1a1a2e; letter-spacing:-0.02em;">
+                  Tu código de acceso
+                </h1>
+                <p style="margin:0 0 24px; font-family:'DM Sans','Segoe UI',Helvetica,Arial,sans-serif; font-size:16px; line-height:1.6; color:#444441;">
+                  Introduce este código en la app para verificar tu cuenta y continuar.
+                </p>
+
+                <!-- Código (OTP) -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td align="center" style="padding:2px 0;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td align="center" style="background-color:#eeedfe; border-radius:12px; padding:18px 36px; font-family:Nunito,'Trebuchet MS','Segoe UI',Tahoma,sans-serif; font-weight:800; font-size:34px; letter-spacing:0.2em; color:#3c3489;">
+                            {{ .Token }}
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:14px 0 0; text-align:center; font-family:'DM Sans','Segoe UI',Helvetica,Arial,sans-serif; font-size:13px; line-height:1.6; color:#6a6a66;">
+                  Caduca en una hora.
+                </p>
+              </td>
+            </tr>
+
+            <!-- Pie -->
+            <tr>
+              <td style="padding:24px 8px 0; font-family:'DM Sans','Segoe UI',Helvetica,Arial,sans-serif; font-size:13px; line-height:1.6; color:#6a6a66;">
+                <p style="margin:0 0 8px;">
+                  Si no pediste este código, ignora este correo y no lo compartas con nadie.
+                </p>
+                <p style="margin:0;">
+                  <a href="https://knowbiapp.space" target="_blank" style="color:#6a6a66; text-decoration:none;">knowbiapp.space</a>
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
