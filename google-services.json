@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "925453035518",
+    "project_id": "knowbi-e374c",
+    "storage_bucket": "knowbi-e374c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:925453035518:android:955414324f1b881d97c2af",
+        "android_client_info": {
+          "package_name": "com.anonymous.knowbi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0loDxnupj0IL-pIhBZqFNhqEmEcdk-Oo"
+        },
+        {
+          "current_key": "AIzaSyAo09nZ6ZK_Q5DxureJmhH6znwr2b8ikvw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:925453035518:android:4dbd813b264db31997c2af",
+        "android_client_info": {
+          "package_name": "com.knowbi.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0loDxnupj0IL-pIhBZqFNhqEmEcdk-Oo"
+        },
+        {
+          "current_key": "AIzaSyAo09nZ6ZK_Q5DxureJmhH6znwr2b8ikvw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
