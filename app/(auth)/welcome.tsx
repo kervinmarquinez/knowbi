@@ -130,58 +130,46 @@ function MascotIllustration() {
 
 function PillsStackIllustration() {
   return (
-    <View style={{ width: 280, height: 280, alignItems: 'center', justifyContent: 'center' }}>
-      {PILLS.map((pill, i) => (
-        <View
-          key={pill.label}
-          style={{
-            position: 'absolute',
-            transform: [
-              { translateX: pill.x * 0.7 },
-              { translateY: (i - 2) * 36 },
-              { rotate: `${(i - 2) * 3}deg` },
-            ],
-          }}
-        >
-          <FloatingPill label={pill.label} bg={pill.bg} text={pill.text} />
-        </View>
-      ))}
+    <View style={{ width: 320, height: 320 }}>
+      <View
+        style={{
+          position: 'absolute',
+          top: 20,
+          left: 60,
+          right: 60,
+          bottom: 20,
+          backgroundColor: '#EEEDFE',
+          borderRadius: 200,
+        }}
+      />
+      <Image
+        source={require('../../assets/mascot-thinking.png')}
+        style={{ position: 'absolute', width: 220, height: 220, left: 50, top: 50 }}
+        contentFit="contain"
+      />
     </View>
   );
 }
 
 function StreakIllustration() {
   return (
-    <View style={{ width: 280, height: 280, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ width: 320, height: 320 }}>
       <View
         style={{
           position: 'absolute',
-          width: 200,
-          height: 200,
-          borderRadius: 100,
+          top: 20,
+          left: 60,
+          right: 60,
+          bottom: 20,
           backgroundColor: '#FAEEDA',
+          borderRadius: 200,
         }}
       />
-      <Text
-        style={{
-          fontFamily: 'Nunito_800ExtraBold',
-          fontSize: 96,
-          color: '#EF9F27',
-          lineHeight: 96,
-        }}
-      >
-        7
-      </Text>
-      <Text
-        style={{
-          fontFamily: 'DMSans_500Medium',
-          fontSize: 13,
-          color: '#633806',
-          marginTop: 8,
-        }}
-      >
-        días seguidos
-      </Text>
+      <Image
+        source={require('../../assets/mascot-streak.png')}
+        style={{ position: 'absolute', width: 220, height: 220, left: 50, top: 50 }}
+        contentFit="contain"
+      />
     </View>
   );
 }
