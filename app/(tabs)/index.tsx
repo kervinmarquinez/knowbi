@@ -24,6 +24,7 @@ import Animated, {
 import { TopBar } from '../../lib/ui/TopBar';
 import { ProgressDots } from '../../lib/ui/ProgressDots';
 import { PillCard } from '../../lib/ui/PillCard';
+import { ExpandedPillSheet } from '../../lib/ui/ExpandedPillSheet';
 import { useDailyPills } from '../../hooks/useDailyPills';
 import { useAndroidTabBarPad } from '../../lib/useAndroidTabBarPad';
 import { supabase } from '../../lib/supabase';
@@ -64,6 +65,7 @@ function StackCard({
   translateX,
   total,
   onSave,
+  onExpand,
 }: {
   pill: StackPill;
   absIndex: number;
@@ -72,6 +74,7 @@ function StackCard({
   translateX: SharedValue<number>;
   total: number;
   onSave?: () => void;
+  onExpand?: () => void;
 }) {
   const isFront = absIndex === idx;
   const offsetJS = absIndex - idx;
@@ -118,6 +121,7 @@ function StackCard({
         total={total}
         saved={pill.is_saved}
         onSave={isFront ? onSave : undefined}
+        onPress={isFront ? onExpand : undefined}
       />
     </Animated.View>
   );
@@ -139,6 +143,7 @@ export default function HoyScreen() {
   const [idx, setIdx] = useState(0);
   const [streak, setStreak] = useState(0);
   const [isAnon, setIsAnon] = useState(false);
+  const [expanded, setExpanded] = useState<StackPill | null>(null);
   const translateX = useSharedValue(0);
   const idxSV = useSharedValue(0);
   const androidTabBarPad = useAndroidTabBarPad();
@@ -431,6 +436,7 @@ export default function HoyScreen() {
                 translateX={translateX}
                 total={pills.length}
                 onSave={handleSave}
+                onExpand={() => setExpanded(p)}
               />
             ))}
           </View>
@@ -465,6 +471,12 @@ export default function HoyScreen() {
           <Ionicons name="arrow-forward" size={16} color="#888885" />
         </TouchableOpacity>
       </View>
+      <ExpandedPillSheet
+        pill={expanded}
+        saved={expanded ? (pills.find((p) => p.id === expanded.id)?.is_saved ?? false) : false}
+        onClose={() => setExpanded(null)}
+        onSave={handleSave}
+      />
     </SafeAreaView>
   );
 }

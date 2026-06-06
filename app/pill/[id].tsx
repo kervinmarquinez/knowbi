@@ -1,12 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Badge } from '../../lib/ui/Badge';
 import { Button } from '../../lib/ui/Button';
+import { PillDetailView } from '../../lib/ui/PillDetailView';
 import { supabase } from '../../lib/supabase';
-import { formatPillDate } from '../../lib/formatPillDate';
 import type { Category } from '../../lib/ui/categories';
 import { CATEGORY_RAMPS } from '../../lib/ui/categories';
 
@@ -100,45 +99,21 @@ export default function PillDetailScreen() {
           </Text>
         </View>
       ) : pill ? (
-        <>
-          <ScrollView
-            contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: 24 }}
-            showsVerticalScrollIndicator={false}
-          >
-            <Badge category={pill.category} />
-            <Text
-              className="font-display-bold"
-              style={{
-                fontSize: 26,
-                lineHeight: 26 * 1.25,
-                marginTop: 16,
-                letterSpacing: -0.26,
-                color: CATEGORY_RAMPS[pill.category].text,
-              }}
-            >
-              {pill.title}
-            </Text>
-            <Text
-              className="font-body text-body-text-muted"
-              style={{ fontSize: 12, lineHeight: 14, marginTop: 8 }}
-            >
-              {formatPillDate(pill.date)}
-            </Text>
-            <Text
-              className="font-body text-body-text"
-              style={{ fontSize: 16, lineHeight: 16 * 1.6, marginTop: 16 }}
-            >
-              {pill.body}
-            </Text>
-          </ScrollView>
-          <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
-            <Button
-              variant={pill.is_saved ? 'ghost' : 'primary'}
-              label={pill.is_saved ? 'Quitar de guardadas' : 'Guardar'}
-              onPress={toggleSaved}
-            />
-          </View>
-        </>
+        <PillDetailView
+          category={pill.category}
+          title={pill.title}
+          body={pill.body}
+          date={pill.date}
+          footer={
+            <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
+              <Button
+                variant={pill.is_saved ? 'ghost' : 'primary'}
+                label={pill.is_saved ? 'Quitar de guardadas' : 'Guardar'}
+                onPress={toggleSaved}
+              />
+            </View>
+          }
+        />
       ) : null}
     </SafeAreaView>
   );
