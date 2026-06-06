@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Nunito:wght@700;800;900&display=swap');
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1024px; height: 500px; overflow: hidden; }
+      .banner {
+        position: relative;
+        width: 1024px;
+        height: 500px;
+        background: radial-gradient(130% 150% at 100% 45%, #7f77dd 0%, #5b51bd 55%, #534ab7 100%);
+        font-family: 'DM Sans', sans-serif;
+        overflow: hidden;
+      }
+      /* textura sutil de puntos a la izquierda */
+      .banner::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(rgba(255,255,255,0.06) 1.5px, transparent 1.5px);
+        background-size: 26px 26px;
+        opacity: 0.6;
+      }
+      .copy {
+        position: absolute;
+        left: 64px; top: 0; bottom: 0;
+        width: 580px;
+        display: flex; flex-direction: column; justify-content: center;
+        z-index: 2;
+      }
+      .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; }
+      .brand img { width: 46px; height: 46px; display: block; }
+      .brand span {
+        font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 31px;
+        color: #fff; letter-spacing: -0.02em;
+      }
+      .headline {
+        font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 60px;
+        line-height: 1.04; color: #fff; letter-spacing: -0.025em;
+      }
+      .headline em { font-style: normal; color: #eeedfe; }
+      .sub {
+        margin-top: 22px;
+        font-family: 'DM Sans', sans-serif; font-weight: 500; font-size: 23px;
+        color: rgba(255,255,255,0.9);
+      }
+      .art { position: absolute; right: 0; top: 0; bottom: 0; width: 470px; z-index: 1; }
+      .halo {
+        position: absolute; width: 400px; height: 400px; border-radius: 50%;
+        background: rgba(255,255,255,0.13); right: 34px; top: 52px;
+      }
+      .mascot {
+        position: absolute; height: 452px; right: 26px; bottom: 0;
+        filter: drop-shadow(0 22px 44px rgba(26,16,70,0.32));
+      }
+      .chip {
+        position: absolute;
+        display: flex; align-items: center; gap: 8px;
+        background: #fff; border-radius: 22px; padding: 8px 15px;
+        font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 16px; color: #1a1a2e;
+        box-shadow: 0 8px 20px rgba(26,16,70,0.22);
+        z-index: 3;
+      }
+      .chip i { width: 9px; height: 9px; border-radius: 50%; display: block; }
+      .c1 { top: 64px; right: 372px; }
+      .c2 { top: 196px; right: 24px; }
+      .c3 { bottom: 78px; right: 350px; }
+    </style>
+  </head>
+  <body>
+    <div class="banner">
+      <div class="copy">
+        <div class="brand">
+          <img src="https://knowbiapp.space/assets/mascot-head.png" alt="" />
+          <span>Knowbi</span>
+        </div>
+        <div class="headline">5 cosas que<br />no sabías,<br /><em>cada día.</em></div>
+        <div class="sub">Curiosidad sin ruido, en 3 minutos.</div>
+      </div>
+      <div class="art">
+        <div class="halo"></div>
+        <img class="mascot" src="https://knowbiapp.space/assets/mascot-jumping.png" alt="" />
+        <div class="chip c1"><i style="background:#085041"></i>Ciencia</div>
+        <div class="chip c2"><i style="background:#993c1d"></i>Arte</div>
+        <div class="chip c3"><i style="background:#0c447c"></i>Historia</div>
+      </div>
+    </div>
+  </body>
+</html>
